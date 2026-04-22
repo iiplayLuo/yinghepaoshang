@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>春秋战国大地图</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "SimSun", serif;
+            background-color: #f5f0e6;
+            margin: 20px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #8b4513;
+            border-bottom: 2px solid #8b4513;
+            padding-bottom: 10px;
+        }
+        .map-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .map {
+            border: 2px solid #8b4513;
+            background-color: #fff;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(21, 30px);
+            grid-template-rows: repeat(21, 25px);
+            gap: 0;
+        }
+        .cell {
+            width: 30px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            border: 1px solid #ddd;
+            position: relative;
+        }
+        .cell.city {
+            background-color: #ffe4b5;
+            font-weight: bold;
+            color: #8b4513;
+            cursor: pointer;
+        }
+        .cell.city:hover {
+            background-color: #ffa500;
+        }
+        .cell.capital {
+            background-color: #ff6347;
+            color: white;
+        }
+        .cell.xianyang {
+            background-color: #ff0000;
+            color: white;
+            font-weight: bold;
+        }
+        .legend {
+            margin: 20px auto;
+            padding: 15px;
+            border: 1px solid #8b4513;
+            background-color: #fff;
+            max-width: 600px;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #8b4513;
+        }
+        .legend-item {
+            display: inline-block;
+            margin: 5px 15px 5px 0;
+        }
+        .city-list {
+            margin: 20px auto;
+            padding: 15px;
+            border: 1px solid #8b4513;
+            background-color: #fff;
+            max-width: 800px;
+        }
+        .city-list h3 {
+            margin-top: 0;
+            color: #8b4513;
+        }
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .city-card {
+            padding: 8px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .city-card:hover {
+            background-color: #ffe4b5;
+        }
+        .city-name {
+            font-weight: bold;
+            color: #8b4513;
+        }
+        .city-info {
+            font-size: 12px;
+            color: #666;
+        }
+        .stats {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #8b4513;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #8b4513;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .country-qin { color: #8b4513; }
+        .country-chu { color: #2e8b57; }
+        .country-qi { color: #4169e1; }
+        .country-zhao { color: #dc143c; }
+        .country-wei { color: #ff8c00; }
+        .country-yan { color: #6b8e23; }
+        .country-han { color: #9932cc; }
+    </style>
+</head>
+<body>
+    <h1>🏰 春秋战国大地图 🏰</h1>
+
+    <div class="stats">
+        <h3>📊 统计信息</h3>
+        <p>总城市数: <strong id="total-cities">60</strong></p>
+        <p>地图范围: X(0-200), Y(0-200)</p>
+        <p>中心点: 咸阳 (100, 100)</p>
+    </div>
+
+    <div class="legend">
+        <h3>📖 图例</h3>
+        <div class="legend-item"><span style="background:#ff0000;padding:2px 8px;color:white;">咸阳</span> 首都/起点</div>
+        <div class="legend-item"><span style="background:#ff6347;padding:2px 8px;color:white;">大</span> 大型城市</div>
+        <div class="legend-item"><span style="background:#ffe4b5;padding:2px 8px;">中/小</span> 中小型城市</div>
+        <hr>
+        <strong>国家颜色:</strong>
+        <span class="country-qin">秦</span>
+        <span class="country-chu">楚</span>
+        <span class="country-qi">齐</span>
+        <span class="country-zhao">赵</span>
+        <span class="country-wei">魏</span>
+        <span class="country-yan">燕</span>
+        <span class="country-han">韩</span>
+    </div>
+
+    <div class="map-container">
+        <div class="map" id="map"></div>
+    </div>
+
+    <div class="city-list">
+        <h3>🏘️ 城市列表</h3>
+        <div class="city-grid" id="city-grid"></div>
+    </div>
+
+    <script>
+        // 城市数据
+        const cities = [
+            {"name": "咸阳", "x": 100, "y": 100, "country": "秦", "size": "大型", "speciality": "铁器", "friendliness": 100},
+            {"name": "长安", "x": 80, "y": 90, "country": "秦", "size": "大型", "speciality": "马匹", "friendliness": 90},
+            {"name": "洛阳", "x": 120, "y": 80, "country": "魏", "size": "大型", "speciality": "陶器", "friendliness": 60},
+            {"name": "临淄", "x": 150, "y": 60, "country": "齐", "size": "大型", "speciality": "海盐", "friendliness": 50},
+            {"name": "邯郸", "x": 140, "y": 90, "country": "赵", "size": "大型", "speciality": "兵器", "friendliness": 40},
+            {"name": "大梁", "x": 130, "y": 70, "country": "魏", "size": "大型", "speciality": "粮食", "friendliness": 55},
+            {"name": "新郑", "x": 125, "y": 85, "country": "韩", "size": "中型", "speciality": "铜矿", "friendliness": 45},
+            {"name": "蓟城", "x": 180, "y": 100, "country": "燕", "size": "中型", "speciality": "皮革", "friendliness": 40},
+            {"name": "郢都", "x": 90, "y": 150, "country": "楚", "size": "大型", "speciality": "木材", "friendliness": 35},
+            {"name": "曲阜", "x": 155, "y": 50, "country": "鲁", "size": "中型", "speciality": "书籍", "friendliness": 50},
+            {"name": "陶丘", "x": 140, "y": 65, "country": "宋", "size": "中型", "speciality": "陶器", "friendliness": 60},
+            {"name": "宛城", "x": 100, "y": 130, "country": "楚", "size": "中型", "speciality": "药材", "friendliness": 40},
+            {"name": "陈城", "x": 110, "y": 110, "country": "楚", "size": "中型", "speciality": "丝绸", "friendliness": 45},
+            {"name": "寿春", "x": 130, "y": 140, "country": "楚", "size": "中型", "speciality": "粮食", "friendliness": 35},
+            {"name": "姑苏", "x": 160, "y": 150, "country": "吴", "size": "中型", "speciality": "丝绸", "friendliness": 40},
+            {"name": "会稽", "x": 170, "y": 160, "country": "越", "size": "中型", "speciality": "鱼获", "friendliness": 35},
+            {"name": "琅琊", "x": 160, "y": 40, "country": "齐", "size": "小型", "speciality": "海盐", "friendliness": 45},
+            {"name": "即墨", "x": 170, "y": 50, "country": "齐", "size": "小型", "speciality": "鱼获", "friendliness": 40},
+            {"name": "莒城", "x": 155, "y": 65, "country": "齐", "size": "小型", "speciality": "粮食", "friendliness": 45},
+            {"name": "任城", "x": 145, "y": 70, "country": "鲁", "size": "小型", "speciality": "木材", "friendliness": 55},
+            {"name": "薛城", "x": 140, "y": 75, "country": "薛", "size": "小型", "speciality": "兵器", "friendliness": 50},
+            {"name": "濮阳", "x": 135, "y": 85, "country": "卫", "size": "中型", "speciality": "铁器", "friendliness": 55},
+            {"name": "阳翟", "x": 120, "y": 95, "country": "韩", "size": "中型", "speciality": "丝绸", "friendliness": 45},
+            {"name": "安邑", "x": 110, "y": 85, "country": "魏", "size": "中型", "speciality": "铁器", "friendliness": 50},
+            {"name": "平阳", "x": 90, "y": 85, "country": "韩", "size": "小型", "speciality": "药材", "friendliness": 40},
+            {"name": "晋阳", "x": 140, "y": 110, "country": "赵", "size": "中型", "speciality": "马匹", "friendliness": 35},
+            {"name": "上党", "x": 130, "y": 100, "country": "韩", "size": "小型", "speciality": "铜矿", "friendliness": 40},
+            {"name": "朝歌", "x": 135, "y": 95, "country": "卫", "size": "小型", "speciality": "陶器", "friendliness": 50},
+            {"name": "代郡", "x": 160, "y": 120, "country": "赵", "size": "小型", "speciality": "皮革", "friendliness": 30},
+            {"name": "云中", "x": 120, "y": 130, "country": "赵", "size": "小型", "speciality": "马匹", "friendliness": 35},
+            {"name": "九原", "x": 80, "y": 120, "country": "秦", "size": "小型", "speciality": "马匹", "friendliness": 85},
+            {"name": "渔阳", "x": 190, "y": 110, "country": "燕", "size": "小型", "speciality": "弓箭", "friendliness": 35},
+            {"name": "上谷", "x": 185, "y": 120, "country": "燕", "size": "小型", "speciality": "煤炭", "friendliness": 30},
+            {"name": "右北平", "x": 195, "y": 100, "country": "燕", "size": "小型", "speciality": "皮革", "friendliness": 30},
+            {"name": "辽西", "x": 200, "y": 90, "country": "燕", "size": "小型", "speciality": "弓箭", "friendliness": 25},
+            {"name": "辽东", "x": 200, "y": 70, "country": "燕", "size": "小型", "speciality": "鱼获", "friendliness": 25},
+            {"name": "长沙", "x": 80, "y": 170, "country": "楚", "size": "中型", "speciality": "药材", "friendliness": 30},
+            {"name": "武陵", "x": 70, "y": 160, "country": "楚", "size": "小型", "speciality": "木材", "friendliness": 30},
+            {"name": "零陵", "x": 75, "y": 180, "country": "楚", "size": "小型", "speciality": "药材", "friendliness": 25},
+            {"name": "桂阳", "x": 90, "y": 190, "country": "楚", "size": "小型", "speciality": "木材", "friendliness": 25},
+            {"name": "南海", "x": 100, "y": 200, "country": "楚", "size": "小型", "speciality": "海盐", "friendliness": 20},
+            {"name": "象郡", "x": 80, "y": 200, "country": "楚", "size": "小型", "speciality": "象牙", "friendliness": 20},
+            {"name": "巴郡", "x": 50, "y": 130, "country": "巴", "size": "中型", "speciality": "盐", "friendliness": 50},
+            {"name": "蜀郡", "x": 40, "y": 120, "country": "蜀", "size": "中型", "speciality": "粮食", "friendliness": 55},
+            {"name": "汉中", "x": 60, "y": 100, "country": "秦", "size": "中型", "speciality": "药材", "friendliness": 80},
+            {"name": "南阳", "x": 95, "y": 115, "country": "楚", "size": "中型", "speciality": "丝绸", "friendliness": 40},
+            {"name": "颍川", "x": 115, "y": 90, "country": "韩", "size": "中型", "speciality": "铜矿", "friendliness": 45},
+            {"name": "陈留", "x": 125, "y": 75, "country": "魏", "size": "小型", "speciality": "粮食", "friendliness": 50},
+            {"name": "济阴", "x": 135, "y": 65, "country": "魏", "size": "小型", "speciality": "陶器", "friendliness": 45},
+            {"name": "山阳", "x": 130, "y": 75, "country": "魏", "size": "小型", "speciality": "铁器", "friendliness": 45},
+            {"name": "泰山", "x": 150, "y": 40, "country": "鲁", "size": "小型", "speciality": "木材", "friendliness": 55},
+            {"name": "东海", "x": 165, "y": 60, "country": "齐", "size": "小型", "speciality": "鱼获", "friendliness": 40},
+            {"name": "北海", "x": 160, "y": 45, "country": "齐", "size": "小型", "speciality": "海盐", "friendliness": 40},
+            {"name": "东莱", "x": 170, "y": 40, "country": "齐", "size": "小型", "speciality": "鱼获", "friendliness": 35},
+            {"name": "平原", "x": 145, "y": 80, "country": "齐", "size": "小型", "speciality": "粮食", "friendliness": 45},
+            {"name": "勃海", "x": 155, "y": 70, "country": "齐", "size": "小型", "speciality": "海盐", "friendliness": 40},
+            {"name": "彭城", "x": 140, "y": 100, "country": "楚", "size": "中型", "speciality": "丝绸", "friendliness": 35},
+            {"name": "下邳", "x": 145, "y": 110, "country": "楚", "size": "小型", "speciality": "粮食", "friendliness": 35},
+            {"name": "庐江", "x": 125, "y": 130, "country": "楚", "size": "小型", "speciality": "木材", "friendliness": 30},
+            {"name": "丹阳", "x": 115, "y": 140, "country": "楚", "size": "小型", "speciality": "药材", "friendliness": 30},
+            {"name": "豫章", "x": 120, "y": 150, "country": "楚", "size": "小型", "speciality": "木材", "friendliness": 25},
+            {"name": "吴郡", "x": 155, "y": 140, "country": "吴", "size": "小型", "speciality": "丝绸", "friendliness": 35}
+        ];
+
+        // 渲染地图
+        function renderMap() {
+            const mapEl = document.getElementById('map');
+            const gridSize = 21; // 10x10的网格，每个格子代表20单位坐标
+            const cellSize = 20; // 每个格子代表20单位坐标
+
+            // 创建网格
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    // 计算这个格子代表的坐标范围
+                    const xStart = col * cellSize;
+                    const xEnd = xStart + cellSize;
+                    const yStart = (gridSize - 1 - row) * cellSize; // Y轴翻转
+                    const yEnd = yStart + cellSize;
+
+                    // 查找在这个范围内的城市
+                    const citiesInCell = cities.filter(city =>
+                        city.x >= xStart && city.x < xEnd &&
+                        city.y >= yStart && city.y < yEnd
+                    );
+
+                    if (citiesInCell.length > 0) {
+                        if (citiesInCell.length === 1) {
+                            const city = citiesInCell[0];
+                            cell.textContent = city.name;
+                            cell.classList.add('city');
+                            if (city.name === '咸阳') {
+                                cell.classList.add('xianyang');
+                            } else if (city.size === '大型') {
+                                cell.classList.add('capital');
+                            }
+                            cell.title = `${city.name} (${city.x}, ${city.y}) - ${city.country}国`;
+                        } else {
+                            cell.textContent = '+';
+                            cell.classList.add('city');
+                            cell.title = `${citiesInCell.length}个城市重叠`;
+                        }
+                    }
+
+                    mapEl.appendChild(cell);
+                }
+            }
+        }
+
+        // 渲染城市列表
+        function renderCityList() {
+            const gridEl = document.getElementById('city-grid');
+
+            // 按国家分组
+            const countries = {};
+            cities.forEach(city => {
+                if (!countries[city.country]) {
+                    countries[city.country] = [];
+                }
+                countries[city.country].push(city);
+            });
+
+            // 渲染每个国家的城市
+            Object.keys(countries).sort().forEach(country => {
+                const countryDiv = document.createElement('div');
+                countryDiv.style.gridColumn = '1 / -1';
+                countryDiv.style.fontWeight = 'bold';
+                countryDiv.style.color = '#8b4513';
+                countryDiv.style.marginTop = '10px';
+                countryDiv.textContent = `${country}国 (${countries[country].length}个城市)`;
+                gridEl.appendChild(countryDiv);
+
+                countries[country].forEach(city => {
+                    const card = document.createElement('div');
+                    card.className = 'city-card';
+
+                    const distance = Math.sqrt(
+                        Math.pow(city.x - 100, 2) + Math.pow(city.y - 100, 2)
+                    ).toFixed(1);
+
+                    card.innerHTML = `
+                        <div class="city-name">${city.name}</div>
+                        <div class="city-info">
+                            坐标: (${city.x}, ${city.y}) - 距咸阳: ${distance}<br>
+                            规模: ${city.size} - 特产: ${city.speciality}<br>
+                            友好度: ${city.friendliness}
+                        </div>
+                    `;
+                    gridEl.appendChild(card);
+                });
+            });
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('total-cities').textContent = cities.length;
+        }
+
+        // 初始化
+        renderMap();
+        renderCityList();
+        updateStats();
+    </script>
+</body>
+</html>
