@@ -407,15 +407,15 @@
             document.getElementById('gold').textContent = gameData.gold;
             document.getElementById('food').textContent = gameData.food;
             document.getElementById('currentCity').textContent = gameData.currentCity;
-            document.getElementById('coordinates').textContent = `(${gameData.x}, ${gameData.y})`;
+            document.getElementById('coordinates').textContent = `(${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
             
             // 更新顶部位置状态
             const city = checkInCity(gameData.x, gameData.y);
             let locationText = '';
             if (city) {
-                locationText = `当前位置：${city.name}  (${gameData.x.toFixed(2)}, ${gameData.y.toFixed(2)})`;
+                locationText = `当前位置：${city.name}  (${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
             } else {
-                locationText = `当前位置：野外  (${gameData.x.toFixed(2)}, ${gameData.y.toFixed(2)})`;
+                locationText = `当前位置：野外  (${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
             }
             document.getElementById('locationStatus').textContent = locationText;
         }
@@ -557,7 +557,7 @@
                 // 发现事件点，触发事件
                 const event = EventConfig.events.find(e => e.id === foundEventPoint.eventId);
                 if (event) {
-                    addExploreLog(`到达事件点(${newX}, ${newY})，触发事件：${event.name || event.eventName}`, 'normal');
+                    addExploreLog(`到达事件点(${newX}, ${newY})，触发事件：${event.eventName}`, 'normal');
                     
                     if (event.type === EventConfig.eventTypes.BATTLE) {
                         addExploreLog(`遇到了敌人！`, 'battle');

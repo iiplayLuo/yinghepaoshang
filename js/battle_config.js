@@ -15,6 +15,7 @@ const BattleConfig = {
     // 我方配置（从player_config.csv加载）
     player: {
         id: 1,
+        name: '少羽',
         attackRange: 3, // 攻击距离
         initialHp: 1000,
         initialAttack: 100,
@@ -24,12 +25,13 @@ const BattleConfig = {
         defenseGrowth: 5, // 每级成长
         initialCriticalRate: 0.1, // 10%
         initialDodgeRate: 0.05, // 5%
-        normalSkillId: 1 // 普攻技能ID
+        normalSkillId: 1, // 普攻技能ID
+        face: 'player1.png' // 头像
     },
     // 小伙伴配置
     partner: {
         id: 2,
-        name: '弓箭手',
+        name: '荆紫',
         attackRange: 4, // 远程攻击
         initialHp: 800,
         initialAttack: 120,
@@ -39,7 +41,8 @@ const BattleConfig = {
         defenseGrowth: 3, // 每级成长
         initialCriticalRate: 0.15, // 15%
         initialDodgeRate: 0.08, // 8%
-        normalSkillId: 3 // 精准射击技能
+        normalSkillId: 3, // 精准射击技能
+        face: 'player2.png' // 头像
     },
     
     // 敌方配置（从enemies_config.csv加载）

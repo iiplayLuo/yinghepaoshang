@@ -194,7 +194,7 @@
             document.getElementById('gold').textContent = gameData.gold;
             document.getElementById('food').textContent = gameData.food;
             document.getElementById('currentCity').textContent = gameData.currentCity;
-            document.getElementById('coordinates').textContent = `(${gameData.x}, ${gameData.y})`;
+            document.getElementById('coordinates').textContent = `(${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
         }
 
         // 探索地图

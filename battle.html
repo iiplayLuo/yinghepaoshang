@@ -50,6 +50,9 @@
             color: white;
             cursor: pointer;
             transition: all 0.3s ease;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
         .player-unit {
             background-color: #1976d2;
@@ -197,7 +200,7 @@
         }
         .unit-hp-bar {
             position: absolute;
-            bottom: -10px;
+            top: -10px;
             left: 50%;
             transform: translateX(-50%);
             width: 30px;
@@ -213,6 +216,16 @@
         }
         .unit-hp-fill.low {
             background-color: #f44336;
+        }
+        .unit-name {
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #333;
+            white-space: nowrap;
+            text-shadow: 1px 1px 1px white;
         }
         .damage-text {
             position: absolute;
@@ -237,6 +250,21 @@
                 opacity: 0;
                 transform: translateY(-30px);
             }
+        }
+        @keyframes hit-flash {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); background-color: rgba(255, 0, 0, 0); }
+            50% { box-shadow: 0 0 15px 8px rgba(255, 0, 0, 0.9); background-color: rgba(255, 0, 0, 0.5); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); background-color: rgba(255, 0, 0, 0); }
+        }
+        @keyframes hit-scale {
+            0% { transform: scale(1) !important; }
+            50% { transform: scale(0.7) !important; }
+            100% { transform: scale(1) !important; }
+        }
+        .unit.hit {
+            animation: hit-flash 0.5s ease-out, hit-scale 0.5s ease-out !important;
+            z-index: 1000 !important;
+            position: relative !important;
         }
         .victory-screen {
             position: fixed;
@@ -351,7 +379,7 @@
         let gameData = {
             player: {
                 id: 1,
-                name: '玩家',
+                name: BattleConfig.player.name,
                 level: 1,
                 hp: 1000,
                 maxHp: 1000,
@@ -361,7 +389,8 @@
                 dodgeRate: 0.05,
                 attackRange: 3,
                 position: { x: 45, y: 90 }, // 百分比坐标
-                state: 'idle' // idle, moving, attacking
+                state: 'idle', // idle, moving, attacking
+                skillCooldown: 0 // 技能冷却时间（帧数）
             },
             partner: null, // 小伙伴
             enemies: [
@@ -389,7 +418,7 @@
         
         // 技能配置
         const skills = {
-            1: { id: 1, name: '基础攻击', damagePercent: 1.0, cd: 1 },
+            1: { id: 1, name: '基础攻击', damagePercent: 1.0, cd: 2 },
             2: { id: 2, name: '横扫千军', damagePercent: 0.8, cd: 3 },
             3: { id: 3, name: '精准射击', damagePercent: 1.2, cd: 2 },
             4: { id: 4, name: '箭雨', damagePercent: 0.6, cd: 4 }
@@ -435,7 +464,8 @@
                             dodgeRate: enemyAttributes.dodgeRate,
                             attackRange: enemyConfig.attackRange,
                             position: { x: positionX, y: 10 },
-                            state: 'idle'
+                            state: 'idle',
+                            skillCooldown: 0 // 技能冷却时间（帧数）
                         });
                     }
                 }
@@ -452,7 +482,7 @@
                 if (gameData.hasPartner) {
                     gameData.partner = {
                         id: 2,
-                        name: '弓箭手',
+                        name: BattleConfig.partner.name,
                         level: 1,
                         hp: 800,
                         maxHp: 800,
@@ -462,7 +492,8 @@
                         dodgeRate: 0.08,
                         attackRange: 4,
                         position: { x: 55, y: 90 }, // 玩家右侧
-                        state: 'idle'
+                        state: 'idle',
+                        skillCooldown: 0 // 技能冷却时间（帧数）
                     };
                 }
                 
@@ -510,38 +541,48 @@
             // 清空战斗场景
             battleField.innerHTML = '';
             
-            // 渲染玩家单位
-            const playerUnit = document.createElement('div');
-            playerUnit.className = 'unit player-unit';
-            playerUnit.style.left = `${gameData.player.position.x}%`;
-            playerUnit.style.bottom = `${100 - gameData.player.position.y}%`;
-            playerUnit.textContent = 'P';
-            playerUnit.title = `${gameData.player.name}\nHP: ${gameData.player.hp}/${gameData.player.maxHp}`;
-            if (gameData.player.hp / gameData.player.maxHp < 0.2) {
-                playerUnit.classList.add('hp-low');
+            // 渲染玩家单位（如果活着）
+            if (gameData.player.hp > 0) {
+                const playerUnit = document.createElement('div');
+                playerUnit.className = 'unit player-unit';
+                playerUnit.style.left = `${gameData.player.position.x}%`;
+                playerUnit.style.bottom = `${100 - gameData.player.position.y}%`;
+                playerUnit.style.backgroundColor = 'transparent';
+                playerUnit.style.backgroundImage = `url('res/face/${BattleConfig.player.face}')`;
+                playerUnit.title = `${gameData.player.name}\nHP: ${gameData.player.hp}/${gameData.player.maxHp}`;
+                if (gameData.player.hp / gameData.player.maxHp < 0.2) {
+                    playerUnit.classList.add('hp-low');
+                }
+                
+                // 添加玩家血条
+                const playerHpBar = document.createElement('div');
+                playerHpBar.className = 'unit-hp-bar';
+                const playerHpFill = document.createElement('div');
+                playerHpFill.className = 'unit-hp-fill';
+                playerHpFill.style.width = `${(gameData.player.hp / gameData.player.maxHp) * 100}%`;
+                if (gameData.player.hp / gameData.player.maxHp < 0.2) {
+                    playerHpFill.classList.add('low');
+                }
+                playerHpBar.appendChild(playerHpFill);
+                playerUnit.appendChild(playerHpBar);
+                
+                // 添加玩家名字
+                const playerName = document.createElement('div');
+                playerName.className = 'unit-name';
+                playerName.textContent = gameData.player.name;
+                playerUnit.appendChild(playerName);
+                
+                battleField.appendChild(playerUnit);
             }
             
-            // 添加玩家血条
-            const playerHpBar = document.createElement('div');
-            playerHpBar.className = 'unit-hp-bar';
-            const playerHpFill = document.createElement('div');
-            playerHpFill.className = 'unit-hp-fill';
-            playerHpFill.style.width = `${(gameData.player.hp / gameData.player.maxHp) * 100}%`;
-            if (gameData.player.hp / gameData.player.maxHp < 0.2) {
-                playerHpFill.classList.add('low');
-            }
-            playerHpBar.appendChild(playerHpFill);
-            playerUnit.appendChild(playerHpBar);
-            
-            battleField.appendChild(playerUnit);
-            
-            // 渲染小伙伴单位
-            if (gameData.partner) {
+            // 渲染小伙伴单位（如果活着）
+            if (gameData.partner && gameData.partner.hp > 0) {
                 const partnerUnit = document.createElement('div');
                 partnerUnit.className = 'unit player-unit';
                 partnerUnit.style.left = `${gameData.partner.position.x}%`;
                 partnerUnit.style.bottom = `${100 - gameData.partner.position.y}%`;
-                partnerUnit.textContent = 'A'; // 弓箭手
+                partnerUnit.style.backgroundColor = 'transparent';
+                partnerUnit.style.backgroundImage = `url('res/face/${BattleConfig.partner.face}')`;
                 partnerUnit.title = `${gameData.partner.name}\nHP: ${gameData.partner.hp}/${gameData.partner.maxHp}`;
                 if (gameData.partner.hp / gameData.partner.maxHp < 0.2) {
                     partnerUnit.classList.add('hp-low');
@@ -559,39 +600,95 @@
                 partnerHpBar.appendChild(partnerHpFill);
                 partnerUnit.appendChild(partnerHpBar);
                 
+                // 添加小伙伴名字
+                const partnerName = document.createElement('div');
+                partnerName.className = 'unit-name';
+                partnerName.textContent = gameData.partner.name;
+                partnerUnit.appendChild(partnerName);
+                
                 battleField.appendChild(partnerUnit);
             }
             
-            // 渲染敌人单位
+            // 渲染敌人单位（如果活着）
             gameData.enemies.forEach((enemy, index) => {
-                const enemyUnit = document.createElement('div');
-                enemyUnit.className = 'unit enemy-unit';
-                enemyUnit.style.left = `${enemy.position.x}%`;
-                enemyUnit.style.top = `${enemy.position.y}%`;
-                enemyUnit.textContent = `E${index + 1}`;
-                enemyUnit.title = `${enemy.name}\nHP: ${enemy.hp}/${enemy.maxHp}`;
-                if (enemy.hp / enemy.maxHp < 0.2) {
-                    enemyUnit.classList.add('hp-low');
+                if (enemy.hp > 0) {
+                    const enemyUnit = document.createElement('div');
+                    enemyUnit.className = 'unit enemy-unit';
+                    enemyUnit.style.left = `${enemy.position.x}%`;
+                    enemyUnit.style.top = `${enemy.position.y}%`;
+                    enemyUnit.textContent = `E${index + 1}`;
+                    enemyUnit.title = `${enemy.name}\nHP: ${enemy.hp}/${enemy.maxHp}`;
+                    if (enemy.hp / enemy.maxHp < 0.2) {
+                        enemyUnit.classList.add('hp-low');
+                    }
+                    
+                    // 添加敌人血条
+                    const enemyHpBar = document.createElement('div');
+                    enemyHpBar.className = 'unit-hp-bar';
+                    const enemyHpFill = document.createElement('div');
+                    enemyHpFill.className = 'unit-hp-fill';
+                    enemyHpFill.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+                    if (enemy.hp / enemy.maxHp < 0.2) {
+                        enemyHpFill.classList.add('low');
+                    }
+                    enemyHpBar.appendChild(enemyHpFill);
+                    enemyUnit.appendChild(enemyHpBar);
+                    
+                    // 添加敌人名字
+                    const enemyName = document.createElement('div');
+                    enemyName.className = 'unit-name';
+                    enemyName.textContent = enemy.name;
+                    enemyUnit.appendChild(enemyName);
+                    
+                    battleField.appendChild(enemyUnit);
                 }
-                
-                // 添加敌人血条
-                const enemyHpBar = document.createElement('div');
-                enemyHpBar.className = 'unit-hp-bar';
-                const enemyHpFill = document.createElement('div');
-                enemyHpFill.className = 'unit-hp-fill';
-                enemyHpFill.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
-                if (enemy.hp / enemy.maxHp < 0.2) {
-                    enemyHpFill.classList.add('low');
-                }
-                enemyHpBar.appendChild(enemyHpFill);
-                enemyUnit.appendChild(enemyHpBar);
-                
-                battleField.appendChild(enemyUnit);
             });
         }
         
         // 显示伤害文本
         function showDamageText(unit, damage, isCritical, isDodge) {
+            // 触发被攻击单位的闪烁效果
+            if (!isDodge) { // 只有被击中时才闪烁
+                // 简单的DOM元素选择逻辑
+                let unitElement;
+                
+                // 玩家单位
+                if (unit.id === 1) {
+                    unitElement = document.querySelector('.unit.player-unit');
+                }
+                // 小伙伴单位
+                else if (unit.id === 2) {
+                    unitElement = document.querySelector('.unit.player-unit:nth-child(2)');
+                }
+                // 敌人单位
+                else {
+                    unitElement = document.querySelector('.unit.enemy-unit');
+                }
+                
+                if (unitElement) {
+                    // 确保元素存在
+                    console.log('Found unit element:', unitElement);
+                    
+                    // 先移除hit类
+                    unitElement.classList.remove('hit');
+                    
+                    // 强制重排
+                    unitElement.offsetWidth;
+                    
+                    // 重新添加hit类
+                    unitElement.classList.add('hit');
+                    console.log('Added hit class to:', unitElement);
+                    
+                    // 500毫秒后移除hit类
+                    setTimeout(() => {
+                        unitElement.classList.remove('hit');
+                        console.log('Removed hit class from:', unitElement);
+                    }, 500);
+                } else {
+                    console.log('Could not find unit element for unit:', unit);
+                }
+            }
+            
             const battleField = document.getElementById('battle-field');
             const damageText = document.createElement('div');
             damageText.className = 'damage-text';
@@ -679,16 +776,32 @@
         
         // 攻击单位
         function attackUnit(attacker, defender) {
-            // 怪物使用技能时添加呼吸动画
-            if (attacker.id >= 100) {
-                // 触发呼吸动画
-                const unitElement = document.querySelector(`.unit.enemy-unit`);
-                if (unitElement) {
-                    unitElement.classList.add('casting');
-                    setTimeout(() => {
-                        unitElement.classList.remove('casting');
-                    }, 1000);
+            // 检查攻击者和防御者是否存活
+            if (attacker.hp <= 0 || defender.hp <= 0) {
+                return; // 跳过死亡单位的攻击
+            }
+            
+            // 所有单位使用技能时都添加呼吸动画
+            // 找到对应的单位元素
+            let unitElement;
+            if (attacker.id === 1) {
+                unitElement = document.querySelector('.unit.player-unit');
+            } else if (attacker.id === 2) {
+                // 找到第二个玩家单位（小伙伴）
+                const playerUnits = document.querySelectorAll('.unit.player-unit');
+                if (playerUnits.length > 1) {
+                    unitElement = playerUnits[1];
                 }
+            } else {
+                unitElement = document.querySelector('.unit.enemy-unit');
+            }
+            
+            if (unitElement) {
+                // 触发呼吸动画
+                unitElement.classList.add('casting');
+                setTimeout(() => {
+                    unitElement.classList.remove('casting');
+                }, 1000);
             }
             
             // 选择技能
@@ -713,24 +826,140 @@
             } else if (result.isCritical) {
                 addLog(`${attacker.name}对${defender.name}造成了${result.damage}点暴击伤害！`, 'critical');
                 showDamageText(defender, result.damage, true, false);
+                // 直接触发防御者的被攻击动画
+                triggerHitAnimation(defender);
             } else {
                 addLog(`${attacker.name}对${defender.name}造成了${result.damage}点伤害！`, attacker.id <= 2 ? 'player-action' : 'enemy-action');
                 showDamageText(defender, result.damage, false, false);
+                // 直接触发防御者的被攻击动画
+                triggerHitAnimation(defender);
             }
             
             // 更新显示
             renderBattleField();
         }
         
+        // 触发被攻击动画
+        function triggerHitAnimation(unit) {
+            // 找到对应的单位元素
+            let unitElement;
+            
+            // 根据单位类型和位置来找到元素
+            if (unit.id === 1) {
+                // 玩家单位
+                unitElement = document.querySelector('.unit.player-unit');
+            } else if (unit.id === 2) {
+                // 小伙伴单位
+                const units = document.querySelectorAll('.unit.player-unit');
+                if (units.length > 1) {
+                    unitElement = units[1];
+                }
+            } else {
+                // 敌人单位 - 遍历所有敌人单位，找到位置最接近的
+                const enemyUnits = document.querySelectorAll('.unit.enemy-unit');
+                let closestUnit = null;
+                let closestDistance = Infinity;
+                
+                enemyUnits.forEach((elem, index) => {
+                    const enemy = gameData.enemies[index];
+                    if (enemy) {
+                        const dx = enemy.position.x - unit.position.x;
+                        const dy = enemy.position.y - unit.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestUnit = elem;
+                        }
+                    }
+                });
+                unitElement = closestUnit;
+            }
+            
+            if (unitElement) {
+                console.log('Triggering hit animation for:', unit.name);
+                
+                // 保存原始样式
+                const originalTransform = unitElement.style.transform;
+                const originalBoxShadow = unitElement.style.boxShadow;
+                const originalBackgroundColor = unitElement.style.backgroundColor;
+                const originalZIndex = unitElement.style.zIndex;
+                
+                // 直接设置动画效果
+                unitElement.style.zIndex = '1000';
+                
+                // 使用requestAnimationFrame创建动画
+                let startTime = null;
+                const duration = 500; // 500毫秒
+                
+                function animate(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const progress = Math.min((timestamp - startTime) / duration, 1);
+                    
+                    // 计算动画值
+                    let scale, shadowAlpha, bgAlpha;
+                    if (progress < 0.5) {
+                        // 前半段：缩小并增加透明度
+                        scale = 1 - (0.3 * (progress * 2));
+                        shadowAlpha = 0.9 * (progress * 2);
+                        bgAlpha = 0.5 * (progress * 2);
+                    } else {
+                        // 后半段：恢复并减少透明度
+                        scale = 0.7 + (0.3 * ((progress - 0.5) * 2));
+                        shadowAlpha = 0.9 * (1 - (progress - 0.5) * 2);
+                        bgAlpha = 0.5 * (1 - (progress - 0.5) * 2);
+                    }
+                    
+                    // 应用样式
+                    unitElement.style.transform = `scale(${scale})`;
+                    unitElement.style.boxShadow = `0 0 15px 8px rgba(255, 0, 0, ${shadowAlpha})`;
+                    unitElement.style.backgroundColor = `rgba(255, 0, 0, ${bgAlpha})`;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // 动画结束，恢复原始样式
+                        unitElement.style.transform = originalTransform || '';
+                        unitElement.style.boxShadow = originalBoxShadow || '';
+                        unitElement.style.backgroundColor = originalBackgroundColor || '';
+                        unitElement.style.zIndex = originalZIndex || '';
+                        console.log('Animation completed for:', unit.name);
+                    }
+                }
+                
+                // 开始动画
+                requestAnimationFrame(animate);
+            } else {
+                console.log('Could not find element for unit:', unit);
+            }
+        }
+        
         // 更新战斗状态
         function updateBattle() {
+            // 更新所有单位的冷却时间
+            if (gameData.player.skillCooldown > 0) {
+                gameData.player.skillCooldown--;
+            }
+            if (gameData.partner && gameData.partner.skillCooldown > 0) {
+                gameData.partner.skillCooldown--;
+            }
+            gameData.enemies.forEach(enemy => {
+                if (enemy.skillCooldown > 0) {
+                    enemy.skillCooldown--;
+                }
+            });
+            
             // 更新玩家状态
             const aliveEnemies = gameData.enemies.filter(enemy => enemy.hp > 0);
             if (aliveEnemies.length > 0) {
                 const closestEnemy = findClosestTarget(gameData.player, aliveEnemies);
                 if (isInAttackRange(gameData.player, closestEnemy)) {
-                    gameData.player.state = 'attacking';
-                    attackUnit(gameData.player, closestEnemy);
+                    if (gameData.player.skillCooldown === 0) {
+                        gameData.player.state = 'attacking';
+                        attackUnit(gameData.player, closestEnemy);
+                        gameData.player.skillCooldown = skills[1].cd * 30; // 转换为帧数
+                    } else {
+                        gameData.player.state = 'idle';
+                    }
                 } else {
                     gameData.player.state = 'moving';
                     moveUnit(gameData.player, closestEnemy);
@@ -740,8 +969,13 @@
                 if (gameData.partner) {
                     const partnerClosestEnemy = findClosestTarget(gameData.partner, aliveEnemies);
                     if (isInAttackRange(gameData.partner, partnerClosestEnemy)) {
-                        gameData.partner.state = 'attacking';
-                        attackUnit(gameData.partner, partnerClosestEnemy);
+                        if (gameData.partner.skillCooldown === 0) {
+                            gameData.partner.state = 'attacking';
+                            attackUnit(gameData.partner, partnerClosestEnemy);
+                            gameData.partner.skillCooldown = skills[3].cd * 30; // 转换为帧数
+                        } else {
+                            gameData.partner.state = 'idle';
+                        }
                     } else {
                         gameData.partner.state = 'moving';
                         moveUnit(gameData.partner, partnerClosestEnemy);
@@ -759,35 +993,60 @@
             // 更新敌人状态
             gameData.enemies.forEach(enemy => {
                 if (enemy.hp > 0) {
-                    // 敌人优先攻击玩家
-                    if (isInAttackRange(enemy, gameData.player)) {
-                        enemy.state = 'attacking';
-                        attackUnit(enemy, gameData.player);
-                    } else if (gameData.partner && isInAttackRange(enemy, gameData.partner)) {
-                        // 如果玩家不在范围内，攻击小伙伴
-                        enemy.state = 'attacking';
-                        attackUnit(enemy, gameData.partner);
+                    // 检查玩家是否存活
+                    const playerAlive = gameData.player.hp > 0;
+                    
+                    // 敌人优先攻击玩家（如果玩家存活）
+                    if (playerAlive && isInAttackRange(enemy, gameData.player)) {
+                        if (enemy.skillCooldown === 0) {
+                            enemy.state = 'attacking';
+                            attackUnit(enemy, gameData.player);
+                            enemy.skillCooldown = skills[2].cd * 30; // 转换为帧数
+                        } else {
+                            enemy.state = 'idle';
+                        }
+                    } else if (gameData.partner && gameData.partner.hp > 0 && isInAttackRange(enemy, gameData.partner)) {
+                        // 如果玩家死亡或不在范围内，攻击小伙伴
+                        if (enemy.skillCooldown === 0) {
+                            enemy.state = 'attacking';
+                            attackUnit(enemy, gameData.partner);
+                            enemy.skillCooldown = skills[2].cd * 30; // 转换为帧数
+                        } else {
+                            enemy.state = 'idle';
+                        }
                     } else {
-                        enemy.state = 'moving';
-                        moveUnit(enemy, gameData.player);
+                        // 移动到目标位置
+                        if (playerAlive) {
+                            enemy.state = 'moving';
+                            moveUnit(enemy, gameData.player);
+                        } else if (gameData.partner && gameData.partner.hp > 0) {
+                            enemy.state = 'moving';
+                            moveUnit(enemy, gameData.partner);
+                        } else {
+                            enemy.state = 'idle';
+                        }
                     }
                 }
             });
             
-            // 检查玩家是否死亡
-            if (gameData.player.hp <= 0) {
-                clearInterval(gameData.battleInterval);
-                gameData.battleInterval = null;
-                gameData.battleStarted = false;
-                addLog('你被击败了！', 'enemy-action');
-                showDefeatScreen();
-                return;
-            }
+            // 检查所有己方角色是否都死亡
+            const playerAlive = gameData.player.hp > 0;
+            const partnerAlive = gameData.partner && gameData.partner.hp > 0;
             
-            // 检查小伙伴是否死亡
+            // 如果小伙伴死亡，记录日志
             if (gameData.partner && gameData.partner.hp <= 0) {
                 addLog('你的小伙伴被击败了！', 'enemy-action');
                 gameData.partner = null;
+            }
+            
+            // 只有当所有己方角色都死亡时，才算战斗失败
+            if (!playerAlive && !partnerAlive) {
+                clearInterval(gameData.battleInterval);
+                gameData.battleInterval = null;
+                gameData.battleStarted = false;
+                addLog('你的队伍被击败了！', 'enemy-action');
+                showDefeatScreen();
+                return;
             }
             
             // 重新渲染战斗场景
@@ -800,7 +1059,7 @@
                 gameData.battleStarted = true;
                 addLog('战斗开始！', 'player-action');
                 // 每500毫秒更新一次战斗状态
-                gameData.battleInterval = setInterval(updateBattle, 500);
+                gameData.battleInterval = setInterval(updateBattle, 33);
             }
         }
         
@@ -915,9 +1174,13 @@
                 
                 renderBattleField();
                 
-                // 检查玩家是否死亡
-                if (gameData.player.hp <= 0) {
-                    addLog('你被击败了！', 'enemy-action');
+                // 检查所有己方角色是否都死亡
+                const playerAlive = gameData.player.hp > 0;
+                const partnerAlive = gameData.partner && gameData.partner.hp > 0;
+                
+                if (!playerAlive && !partnerAlive) {
+                    addLog('你的队伍被击败了！', 'enemy-action');
+                    showDefeatScreen();
                 }
             }, 1000);
         }
