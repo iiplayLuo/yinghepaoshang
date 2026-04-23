@@ -143,10 +143,50 @@
         <p>© 2026 春秋战国游戏</p>
     </div>
 
-    <script src="game_config.js"></script>
+    <script src="js/game_config.js"></script>
     <script>
         // 游戏数据
         let gameData = { ...GameConfig.player };
+        
+        // 城市数据
+        let cities = [];
+        
+        // 加载地图数据
+        async function loadMapData() {
+            try {
+                // 首先尝试加载map/map_data.json
+                let response = await fetch('map/map_data.json');
+                
+                // 如果失败，尝试加载根目录的map_data.json
+                if (!response.ok) {
+                    response = await fetch('map_data.json');
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.cities) {
+                        cities = data.cities.map(city => ({
+                            name: city.name,
+                            x: city.x,
+                            y: city.y,
+                            size: city.size,
+                            isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳'
+                        }));
+                        
+                        // 找到初始点并设置游戏数据
+                        const birthCity = cities.find(city => city.isBirth);
+                        if (birthCity) {
+                            gameData.currentCity = birthCity.name;
+                            gameData.x = birthCity.x;
+                            gameData.y = birthCity.y;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('加载地图数据失败:', error);
+                // 如果加载失败，使用默认数据
+            }
+        }
 
         // 更新游戏信息显示
         function updateGameInfo() {
@@ -160,7 +200,7 @@
         // 探索地图
         function explore() {
             // 跳转到探索页面
-            window.location.href = `explore.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}`;
+            window.location.href = `explore.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner || false}`;
         }
         
         // 打开建筑物
@@ -188,14 +228,14 @@
                     // 驿站：补满粮食并进入探索
                     gameData.food = 10000; // 补满粮食
                     updateGameInfo();
-                    alert('粮食已补满！');
                     explore(); // 进入探索功能
                     break;
             }
         }
 
         // 初始化
-        function init() {
+        async function init() {
+            await loadMapData();
             updateGameInfo();
         }
 

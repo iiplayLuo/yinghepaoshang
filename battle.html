@@ -68,10 +68,18 @@
         .unit.hp-low {
             animation: pulse 1s infinite;
         }
+        .unit.casting {
+            animation: breath 1s ease-in-out;
+        }
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
+        }
+        @keyframes breath {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
         }
         .actions {
             text-align: center;
@@ -270,6 +278,43 @@
         .victory-screen .ok-button:hover {
             background-color: #a0522d;
         }
+        .defeat-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+        .defeat-screen h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #f44336;
+        }
+        .defeat-screen .message {
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .defeat-screen .ok-button {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .defeat-screen .ok-button:hover {
+            background-color: #c62828;
+        }
     </style>
 </head>
 <body>
@@ -298,9 +343,9 @@
         </div>
     </div>
     
-    <script src="battle_config.js"></script>
-    <script src="battle_logic.js"></script>
-    <script src="level_config.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/battle_logic.js"></script>
+    <script src="js/level_config.js"></script>
     <script>
         // 游戏数据
         let gameData = {
@@ -318,6 +363,7 @@
                 position: { x: 45, y: 90 }, // 百分比坐标
                 state: 'idle' // idle, moving, attacking
             },
+            partner: null, // 小伙伴
             enemies: [
                 {
                     id: 101,
@@ -337,7 +383,8 @@
             currentLevel: 1,
             currentEnemyIndex: 0,
             battleStarted: false,
-            battleInterval: null
+            battleInterval: null,
+            hasPartner: false
         };
         
         // 技能配置
@@ -396,6 +443,34 @@
                 gameData.currentLevel = parseInt(levelId);
                 gameData.currentEnemyIndex = 0;
                 gameData.battleStarted = false;
+                
+                // 检查是否有小伙伴
+                const urlParams = new URLSearchParams(window.location.search);
+                gameData.hasPartner = urlParams.get('hasPartner') === 'true';
+                
+                // 如果有小伙伴，加载小伙伴数据
+                if (gameData.hasPartner) {
+                    gameData.partner = {
+                        id: 2,
+                        name: '弓箭手',
+                        level: 1,
+                        hp: 800,
+                        maxHp: 800,
+                        attack: 120,
+                        defense: 30,
+                        criticalRate: 0.15,
+                        dodgeRate: 0.08,
+                        attackRange: 4,
+                        position: { x: 55, y: 90 }, // 玩家右侧
+                        state: 'idle'
+                    };
+                }
+                
+                // 更新关卡名字显示
+                const levelNameElement = document.getElementById('level-name');
+                if (levelNameElement) {
+                    levelNameElement.textContent = `关卡 ${level.id} - ${level.levelName}`;
+                }
                 
                 // 由于移除了信息面板，不再更新敌人显示
                 // 只需要渲染战斗场景
@@ -460,6 +535,33 @@
             
             battleField.appendChild(playerUnit);
             
+            // 渲染小伙伴单位
+            if (gameData.partner) {
+                const partnerUnit = document.createElement('div');
+                partnerUnit.className = 'unit player-unit';
+                partnerUnit.style.left = `${gameData.partner.position.x}%`;
+                partnerUnit.style.bottom = `${100 - gameData.partner.position.y}%`;
+                partnerUnit.textContent = 'A'; // 弓箭手
+                partnerUnit.title = `${gameData.partner.name}\nHP: ${gameData.partner.hp}/${gameData.partner.maxHp}`;
+                if (gameData.partner.hp / gameData.partner.maxHp < 0.2) {
+                    partnerUnit.classList.add('hp-low');
+                }
+                
+                // 添加小伙伴血条
+                const partnerHpBar = document.createElement('div');
+                partnerHpBar.className = 'unit-hp-bar';
+                const partnerHpFill = document.createElement('div');
+                partnerHpFill.className = 'unit-hp-fill';
+                partnerHpFill.style.width = `${(gameData.partner.hp / gameData.partner.maxHp) * 100}%`;
+                if (gameData.partner.hp / gameData.partner.maxHp < 0.2) {
+                    partnerHpFill.classList.add('low');
+                }
+                partnerHpBar.appendChild(partnerHpFill);
+                partnerUnit.appendChild(partnerHpBar);
+                
+                battleField.appendChild(partnerUnit);
+            }
+            
             // 渲染敌人单位
             gameData.enemies.forEach((enemy, index) => {
                 const enemyUnit = document.createElement('div');
@@ -503,15 +605,15 @@
                 damageText.textContent = damage;
             }
             
-            // 定位到单位位置
+            // 定位到单位位置（右侧）
             if (unit.id === 1) {
                 // 玩家单位
-                damageText.style.left = `${unit.position.x}%`;
-                damageText.style.bottom = `${100 - unit.position.y + 15}%`;
+                damageText.style.left = `${unit.position.x + 5}%`;
+                damageText.style.bottom = `${100 - unit.position.y}%`;
             } else {
                 // 敌人单位
-                damageText.style.left = `${unit.position.x}%`;
-                damageText.style.top = `${unit.position.y + 15}%`;
+                damageText.style.left = `${unit.position.x + 5}%`;
+                damageText.style.top = `${unit.position.y}%`;
             }
             
             battleField.appendChild(damageText);
@@ -562,8 +664,8 @@
             
             if (distance > 0) {
                 // 归一化方向向量
-                const moveX = (dx / distance) * 0.5; // 减小移动速度，使移动更平滑
-                const moveY = (dy / distance) * 0.5;
+                const moveX = (dx / distance) * 1.0; // 移速翻倍
+                const moveY = (dy / distance) * 1.0;
                 
                 // 更新位置
                 unit.position.x += moveX;
@@ -577,10 +679,32 @@
         
         // 攻击单位
         function attackUnit(attacker, defender) {
+            // 怪物使用技能时添加呼吸动画
+            if (attacker.id >= 100) {
+                // 触发呼吸动画
+                const unitElement = document.querySelector(`.unit.enemy-unit`);
+                if (unitElement) {
+                    unitElement.classList.add('casting');
+                    setTimeout(() => {
+                        unitElement.classList.remove('casting');
+                    }, 1000);
+                }
+            }
+            
+            // 选择技能
+            let skill;
+            if (attacker.id === 1) {
+                skill = skills[1]; // 玩家用基础攻击
+            } else if (attacker.id === 2) {
+                skill = skills[3]; // 小伙伴用精准射击
+            } else {
+                skill = skills[2]; // 怪物用技能
+            }
+            
             const result = BattleLogic.executeBattle(
                 attacker,
                 defender,
-                skills[1] // 基础攻击
+                skill
             );
             
             if (result.isDodge) {
@@ -590,7 +714,7 @@
                 addLog(`${attacker.name}对${defender.name}造成了${result.damage}点暴击伤害！`, 'critical');
                 showDamageText(defender, result.damage, true, false);
             } else {
-                addLog(`${attacker.name}对${defender.name}造成了${result.damage}点伤害！`, attacker.id === 1 ? 'player-action' : 'enemy-action');
+                addLog(`${attacker.name}对${defender.name}造成了${result.damage}点伤害！`, attacker.id <= 2 ? 'player-action' : 'enemy-action');
                 showDamageText(defender, result.damage, false, false);
             }
             
@@ -611,6 +735,18 @@
                     gameData.player.state = 'moving';
                     moveUnit(gameData.player, closestEnemy);
                 }
+                
+                // 更新小伙伴状态
+                if (gameData.partner) {
+                    const partnerClosestEnemy = findClosestTarget(gameData.partner, aliveEnemies);
+                    if (isInAttackRange(gameData.partner, partnerClosestEnemy)) {
+                        gameData.partner.state = 'attacking';
+                        attackUnit(gameData.partner, partnerClosestEnemy);
+                    } else {
+                        gameData.partner.state = 'moving';
+                        moveUnit(gameData.partner, partnerClosestEnemy);
+                    }
+                }
             } else {
                 // 所有敌人都被击败
                 clearInterval(gameData.battleInterval);
@@ -623,9 +759,14 @@
             // 更新敌人状态
             gameData.enemies.forEach(enemy => {
                 if (enemy.hp > 0) {
+                    // 敌人优先攻击玩家
                     if (isInAttackRange(enemy, gameData.player)) {
                         enemy.state = 'attacking';
                         attackUnit(enemy, gameData.player);
+                    } else if (gameData.partner && isInAttackRange(enemy, gameData.partner)) {
+                        // 如果玩家不在范围内，攻击小伙伴
+                        enemy.state = 'attacking';
+                        attackUnit(enemy, gameData.partner);
                     } else {
                         enemy.state = 'moving';
                         moveUnit(enemy, gameData.player);
@@ -639,7 +780,14 @@
                 gameData.battleInterval = null;
                 gameData.battleStarted = false;
                 addLog('你被击败了！', 'enemy-action');
+                showDefeatScreen();
                 return;
+            }
+            
+            // 检查小伙伴是否死亡
+            if (gameData.partner && gameData.partner.hp <= 0) {
+                addLog('你的小伙伴被击败了！', 'enemy-action');
+                gameData.partner = null;
             }
             
             // 重新渲染战斗场景
@@ -716,10 +864,13 @@
             
             if (result.isDodge) {
                 addLog(`${currentEnemy.name}闪避了你的攻击！`, 'dodge');
+                showDamageText(currentEnemy, 0, false, true);
             } else if (result.isCritical) {
                 addLog(`你对${currentEnemy.name}造成了${result.damage}点暴击伤害！`, 'critical');
+                showDamageText(currentEnemy, result.damage, true, false);
             } else {
                 addLog(`你对${currentEnemy.name}造成了${result.damage}点伤害！`, 'player-action');
+                showDamageText(currentEnemy, result.damage, false, false);
             }
             
             renderBattleField();
@@ -753,10 +904,13 @@
                 
                 if (enemyResult.isDodge) {
                     addLog('你闪避了敌人的攻击！', 'dodge');
+                    showDamageText(gameData.player, 0, false, true);
                 } else if (enemyResult.isCritical) {
                     addLog(`${currentEnemy.name}对你造成了${enemyResult.damage}点暴击伤害！`, 'critical');
+                    showDamageText(gameData.player, enemyResult.damage, true, false);
                 } else {
                     addLog(`${currentEnemy.name}对你造成了${enemyResult.damage}点伤害！`, 'enemy-action');
+                    showDamageText(gameData.player, enemyResult.damage, false, false);
                 }
                 
                 renderBattleField();
@@ -794,10 +948,13 @@
                     
                     if (enemyResult.isDodge) {
                         addLog('你闪避了敌人的攻击！', 'dodge');
+                        showDamageText(gameData.player, 0, false, true);
                     } else if (enemyResult.isCritical) {
                         addLog(`${currentEnemy.name}对你造成了${enemyResult.damage}点暴击伤害！`, 'critical');
+                        showDamageText(gameData.player, enemyResult.damage, true, false);
                     } else {
                         addLog(`${currentEnemy.name}对你造成了${enemyResult.damage}点伤害！`, 'enemy-action');
+                        showDamageText(gameData.player, enemyResult.damage, false, false);
                     }
                     
                     updatePlayerDisplay();
@@ -834,6 +991,33 @@
             }
         }
         
+        // 显示失败结算
+        function showDefeatScreen() {
+            const defeatScreen = document.createElement('div');
+            defeatScreen.className = 'defeat-screen';
+            
+            defeatScreen.innerHTML = `
+                <h2>战斗失败</h2>
+                <div class="message">
+                    你被敌人击败了...
+                </div>
+                <button class="ok-button" onclick="closeDefeatScreen()">确定</button>
+            `;
+            
+            document.body.appendChild(defeatScreen);
+        }
+        
+        // 关闭失败结算UI并返回城市
+        function closeDefeatScreen() {
+            const defeatScreen = document.querySelector('.defeat-screen');
+            if (defeatScreen) {
+                defeatScreen.remove();
+            }
+            
+            // 返回城市
+            window.location.href = `game_main.html?level=${gameData.level || 1}&gold=${gameData.gold || 10000}&food=${gameData.food || 10000}&currentCity=${encodeURIComponent(gameData.currentCity || '咸阳')}&x=${gameData.x || 0}&y=${gameData.y || 0}&hasPartner=${gameData.hasPartner || false}`;
+        }
+        
         // 关闭胜利结算UI并返回探索界面
         function closeVictoryScreen() {
             const victoryScreen = document.querySelector('.victory-screen');
@@ -851,7 +1035,7 @@
             const y = urlParams.get('y') || 0;
             
             // 跳转到探索界面
-            window.location.href = `explore.html?level=${level}&gold=${gold}&food=${food}&currentCity=${encodeURIComponent(currentCity)}&x=${x}&y=${y}`;
+            window.location.href = `explore.html?level=${level}&gold=${gold}&food=${food}&currentCity=${encodeURIComponent(currentCity)}&x=${x}&y=${y}&hasPartner=${gameData.hasPartner}`;
         }
         
         // 初始化

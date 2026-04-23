@@ -26,6 +26,21 @@ const BattleConfig = {
         initialDodgeRate: 0.05, // 5%
         normalSkillId: 1 // 普攻技能ID
     },
+    // 小伙伴配置
+    partner: {
+        id: 2,
+        name: '弓箭手',
+        attackRange: 4, // 远程攻击
+        initialHp: 800,
+        initialAttack: 120,
+        initialDefense: 30,
+        hpGrowth: 80, // 每级成长
+        attackGrowth: 15, // 每级成长
+        defenseGrowth: 3, // 每级成长
+        initialCriticalRate: 0.15, // 15%
+        initialDodgeRate: 0.08, // 8%
+        normalSkillId: 3 // 精准射击技能
+    },
     
     // 敌方配置（从enemies_config.csv加载）
     enemies: [

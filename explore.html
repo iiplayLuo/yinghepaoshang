@@ -56,14 +56,15 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             padding: 20px;
+            padding-top: 10px;
         }
         .title {
             font-size: 24px;
             font-weight: bold;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             color: #8b4513;
         }
         .direction-container {
@@ -186,6 +187,86 @@
             align-items: center;
             gap: 5px;
         }
+        .explore-log {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 20px;
+            margin-top: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 400px;
+        }
+        .explore-log h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #8b4513;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-entry.battle {
+            color: #d32f2f;
+        }
+        .log-entry.partner {
+            color: #1976d2;
+        }
+        .log-entry.nothing {
+            color: #6b8e23;
+        }
+        .partner-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+        .partner-screen h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ffeb3b;
+        }
+        .partner-screen .partner-image {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 4px solid #ffeb3b;
+            margin-bottom: 20px;
+            object-fit: cover;
+        }
+        .partner-screen .partner-description {
+            margin: 20px 0;
+            font-size: 16px;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+        .partner-screen .ok-button {
+            background-color: #8b4513;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .partner-screen .ok-button:hover {
+            background-color: #a0522d;
+        }
     </style>
 </head>
 <body>
@@ -217,7 +298,7 @@
         
         <div class="direction-container">
             <div class="direction-item">
-                <div class="direction-label">往东走</div>
+                <div class="direction-label">往东探索</div>
                 <div class="distance-control">
                     <button class="control-btn" onclick="adjustDistance('east', -10)">-</button>
                     <input type="number" class="distance-input" id="east" value="0" min="0" step="10">
@@ -227,7 +308,7 @@
             </div>
             
             <div class="direction-item">
-                <div class="direction-label">往南走</div>
+                <div class="direction-label">往南探索</div>
                 <div class="distance-control">
                     <button class="control-btn" onclick="adjustDistance('south', -10)">-</button>
                     <input type="number" class="distance-input" id="south" value="0" min="0" step="10">
@@ -237,7 +318,7 @@
             </div>
             
             <div class="direction-item">
-                <div class="direction-label">往西走</div>
+                <div class="direction-label">往西探索</div>
                 <div class="distance-control">
                     <button class="control-btn" onclick="adjustDistance('west', -10)">-</button>
                     <input type="number" class="distance-input" id="west" value="0" min="0" step="10">
@@ -247,7 +328,7 @@
             </div>
             
             <div class="direction-item">
-                <div class="direction-label">往北走</div>
+                <div class="direction-label">往北探索</div>
                 <div class="distance-control">
                     <button class="control-btn" onclick="adjustDistance('north', -10)">-</button>
                     <input type="number" class="distance-input" id="north" value="0" min="0" step="10">
@@ -260,6 +341,11 @@
         <div class="button-group">
             <button class="start-button" onclick="startExploration()">出发探索</button>
             <button class="return-button" onclick="returnToCity()">返回城市</button>
+        </div>
+        
+        <div class="explore-log" id="explore-log">
+            <h3>📜 探索日志</h3>
+            <div id="log-entries"></div>
         </div>
     </div>
 
@@ -277,91 +363,20 @@
         </div>
     </div>
 
-    <script src="game_config.js"></script>
-    <script src="event_config.js"></script>
+    <script src="js/game_config.js"></script>
+    <script src="js/event_config.js"></script>
     <script>
         // 城市数据（坐标以咸阳为原点(0,0)，单位：里）
-        // 1个格子 = 50里 = 25公里
-        const cities = [
-            // 秦国城市
-            { name: '咸阳', x: 0, y: 0, size: 'large', isBirth: true },
-            { name: '雍城', x: -100, y: 100, size: 'large' },
-            { name: '栎阳', x: 100, y: 50, size: 'medium' },
-            { name: '陇西', x: -250, y: -100, size: 'small' },
-            { name: '北地', x: -150, y: -250, size: 'small' },
-            
-            // 晋国/三晋城市
-            { name: '晋阳', x: 1000, y: 250, size: 'large' },
-            { name: '平阳', x: 900, y: 400, size: 'medium' },
-            { name: '绛城', x: 750, y: 500, size: 'large' },
-            { name: '邯郸', x: 1250, y: 500, size: 'large' },
-            { name: '大梁', x: 1100, y: 750, size: 'large' },
-            { name: '安邑', x: 800, y: 600, size: 'medium' },
-            { name: '新郑', x: 1000, y: 900, size: 'large' },
-            { name: '上党', x: 900, y: 300, size: 'medium' },
-            
-            // 齐国城市
-            { name: '临淄', x: 1750, y: -250, size: 'large' },
-            { name: '即墨', x: 2000, y: -400, size: 'medium' },
-            { name: '莒城', x: 1900, y: 400, size: 'medium' },
-            { name: '历城', x: 1600, y: 400, size: 'small' },
-            
-            // 楚国城市
-            { name: '郢都', x: 1250, y: 1750, size: 'large' },
-            { name: '寿春', x: 1500, y: 1500, size: 'large' },
-            { name: '宛城', x: 1100, y: 1250, size: 'medium' },
-            { name: '陈城', x: 1250, y: 1100, size: 'medium' },
-            { name: '鄂城', x: 1750, y: 1900, size: 'small' },
-            { name: '长沙', x: 1500, y: 2250, size: 'small' },
-            { name: '江陵', x: 1100, y: 1900, size: 'medium' },
-            
-            // 燕国城市
-            { name: '蓟城', x: 2250, y: 0, size: 'large' },
-            { name: '涿城', x: 2000, y: 250, size: 'medium' },
-            { name: '易城', x: 1900, y: -100, size: 'small' },
-            
-            // 宋国城市
-            { name: '商丘', x: 1400, y: 900, size: 'large' },
-            { name: '彭城', x: 1600, y: 1000, size: 'medium' },
-            
-            // 鲁国城市
-            { name: '曲阜', x: 1750, y: 600, size: 'large' },
-            { name: '邹城', x: 1650, y: 700, size: 'small' },
-            
-            // 卫国城市
-            { name: '朝歌', x: 1250, y: 600, size: 'medium' },
-            { name: '濮阳', x: 1350, y: 700, size: 'medium' },
-            
-            // 郑国城市
-            { name: '荥阳', x: 1100, y: 800, size: 'small' },
-            
-            // 吴国城市
-            { name: '姑苏', x: 2000, y: 1250, size: 'large' },
-            { name: '会稽', x: 2250, y: 1500, size: 'medium' },
-            
-            // 其他重要城市
-            { name: '洛阳', x: 1000, y: 750, size: 'large' },
-            { name: '周王城', x: 950, y: 700, size: 'medium' },
-            { name: '函谷关', x: 250, y: 400, size: 'small' },
-            { name: '武关', x: 400, y: 750, size: 'small' },
-            { name: '潼关', x: 100, y: 250, size: 'small' },
-            { name: '大荔', x: 250, y: 100, size: 'small' },
-            { name: '临晋', x: 400, y: 0, size: 'small' },
-            { name: '蒲坂', x: 500, y: 100, size: 'small' },
-            { name: '解梁', x: 600, y: 250, size: 'small' },
-            { name: '曲沃', x: 700, y: 400, size: 'small' },
-            { name: '翼城', x: 800, y: 450, size: 'small' },
-            { name: '皮氏', x: 600, y: 400, size: 'small' },
-            { name: '平阳', x: 900, y: 400, size: 'medium' },
-            { name: '屯留', x: 800, y: 300, size: 'small' },
-            { name: '长子', x: 850, y: 350, size: 'small' },
-            { name: '铜鞮', x: 750, y: 350, size: 'small' },
-            { name: '襄垣', x: 950, y: 300, size: 'small' },
-            { name: '武安', x: 1300, y: 400, size: 'small' },
-            { name: '邺城', x: 1200, y: 550, size: 'medium' },
-            { name: '信都', x: 1350, y: 600, size: 'small' },
-            { name: '中山', x: 1100, y: 400, size: 'medium' }
+        // 1个格子 = 10里 = 5公里
+        let cities = [
+            // 咸阳（中心城市）
+            { name: '咸阳', x: 0, y: 0, size: 'large', isBirth: false },
+            // 初始城市：咸阳西30里，南30里
+            { name: '始源村', x: -30, y: 30, size: 'small', isBirth: true }
         ];
+        
+        // 事件点数据
+        let eventPoints = [];
 
         // 游戏数据
         let gameData = { ...GameConfig.player };
@@ -375,7 +390,9 @@
                 food: parseInt(params.get('food')) || 10000,
                 currentCity: decodeURIComponent(params.get('currentCity')) || '咸阳',
                 x: parseInt(params.get('x')) || 0,
-                y: parseInt(params.get('y')) || 0
+                y: parseInt(params.get('y')) || 0,
+                hasPartner: params.get('hasPartner') === 'true',
+                exploreLog: []
             };
         }
 
@@ -402,7 +419,57 @@
             }
             document.getElementById('locationStatus').textContent = locationText;
         }
-
+        
+        // 添加探索日志
+        function addExploreLog(message, type = 'normal') {
+            const timestamp = new Date().toLocaleTimeString();
+            gameData.exploreLog.push({ message, type, timestamp });
+            renderExploreLog();
+        }
+        
+        // 渲染探索日志
+        function renderExploreLog() {
+            const logEntriesDiv = document.getElementById('log-entries');
+            if (logEntriesDiv) {
+                logEntriesDiv.innerHTML = gameData.exploreLog.map(entry =>
+                    `<div class="log-entry ${entry.type}">[${entry.timestamp}] ${entry.message}</div>`
+                ).join('');
+            }
+        }
+        
+        // 清理探索日志
+        function clearExploreLog() {
+            gameData.exploreLog = [];
+            renderExploreLog();
+        }
+        
+        // 显示小伙伴获得界面
+        function showPartnerScreen(event) {
+            const partnerScreen = document.createElement('div');
+            partnerScreen.className = 'partner-screen';
+            partnerScreen.id = 'partner-screen';
+            
+            // 构建图片路径
+            const imagePath = `assets/${event.eventImage || 'partner.png'}`;
+            
+            partnerScreen.innerHTML = `
+                <h2>🎉 ${event.eventName || '获得新伙伴'}！</h2>
+                <img src="${imagePath}" class="partner-image" alt="伙伴">
+                <div class="partner-description">${event.eventDescription || event.description || ''}</div>
+                <button class="ok-button" onclick="closePartnerScreen()">确定</button>
+            `;
+            
+            document.body.appendChild(partnerScreen);
+        }
+        
+        // 关闭小伙伴获得界面
+        function closePartnerScreen() {
+            const partnerScreen = document.getElementById('partner-screen');
+            if (partnerScreen) {
+                partnerScreen.remove();
+            }
+        }
+        
         // 调整距离
         function adjustDistance(direction, value) {
             // 确定互斥的方向
@@ -479,45 +546,102 @@
 
             // 检查新坐标是否有城市
             const foundCity = cities.find(city => city.x === newX && city.y === newY);
+            
+            // 检查新坐标是否有事件点
+            const foundEventPoint = eventPoints.find(ep => ep.x === newX && ep.y === newY);
 
             // 扣除粮食
             gameData.food -= foodConsumption;
 
-            if (foundCity) {
+            if (foundEventPoint && foundEventPoint.eventId > 0) {
+                // 发现事件点，触发事件
+                const event = EventConfig.events.find(e => e.id === foundEventPoint.eventId);
+                if (event) {
+                    addExploreLog(`到达事件点(${newX}, ${newY})，触发事件：${event.name || event.eventName}`, 'normal');
+                    
+                    if (event.type === EventConfig.eventTypes.BATTLE) {
+                        addExploreLog(`遇到了敌人！`, 'battle');
+                        if (confirm('遇到了敌人！是否进入战斗？')) {
+                            // 跳转到战斗界面，传递事件参数作为关卡ID
+                            window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                            return;
+                        }
+                    } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
+                        addExploreLog(`遇到了一位弓箭手！`, 'partner');
+                        showPartnerScreen(event);
+                        gameData.hasPartner = true;
+                    } else if (event.type === EventConfig.eventTypes.NOTHING) {
+                        addExploreLog(`在事件点探索了一番，什么也没有发生...`, 'nothing');
+                    }
+                }
+                
+                // 更新坐标
+                gameData.x = newX;
+                gameData.y = newY;
+                updateGameInfo();
+            } else if (foundCity) {
                 // 发现城市，弹出确认对话框
                 if (confirm(`发现${foundCity.name}城，是否进入城市？`)) {
+                    // 检查是否有事件
+                    if (foundCity.eventId && foundCity.eventId > 0) {
+                        // 触发城市事件
+                        const event = EventConfig.events.find(e => e.id === foundCity.eventId);
+                        if (event) {
+                            if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
+                                addExploreLog(`在${foundCity.name}遇到了一位弓箭手！`, 'partner');
+                                showPartnerScreen(event);
+                                gameData.hasPartner = true;
+                            } else if (event.type === EventConfig.eventTypes.BATTLE) {
+                                addExploreLog(`在${foundCity.name}遇到了敌人！`, 'battle');
+                                if (confirm('在城市遇到了敌人！是否进入战斗？')) {
+                                    // 跳转到战斗界面，传递事件参数作为关卡ID
+                                    window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                                    return;
+                                }
+                            } else if (event.type === EventConfig.eventTypes.NOTHING) {
+                                addExploreLog(`在${foundCity.name}探索了一番，什么也没有发生...`, 'nothing');
+                            }
+                        }
+                    }
+                    
                     // 更新位置信息
                     gameData.currentCity = foundCity.name;
                     gameData.x = newX;
                     gameData.y = newY;
+                    // 清理日志
+                    clearExploreLog();
                     // 跳转到主界面
-                    window.location.href = `game_main.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}`;
+                    window.location.href = `game_main.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner || false}`;
                 } else {
                     // 不进入城市，只更新坐标
                     gameData.x = newX;
                     gameData.y = newY;
+                    addExploreLog(`探索至(${newX}, ${newY})，消耗粮食${foodConsumption}点`, 'normal');
                     updateGameInfo();
-                    alert(`探索完成！当前位置：(${newX}, ${newY})，消耗粮食${foodConsumption}点`);
                 }
             } else {
                 // 没有发现城市，只更新坐标
                 gameData.x = newX;
                 gameData.y = newY;
+                addExploreLog(`探索至(${newX}, ${newY})，消耗粮食${foodConsumption}点`, 'normal');
                 updateGameInfo();
                 
                 // 尝试触发事件
                 const event = EventConfig.triggerEvent();
                 if (event) {
                     if (event.type === EventConfig.eventTypes.BATTLE) {
+                        addExploreLog(`在野外遇到了敌人！`, 'battle');
                         if (confirm('在野外遇到了敌人！是否进入战斗？')) {
                             // 跳转到战斗界面，传递事件参数作为关卡ID
-                            window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}`;
-                        } else {
-                            alert(`探索完成！当前位置：(${newX}, ${newY})，消耗粮食${foodConsumption}点`);
+                            window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
                         }
+                    } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
+                        addExploreLog(`遇到了一位弓箭手！`, 'partner');
+                        showPartnerScreen(event);
+                        gameData.hasPartner = true;
+                    } else if (event.type === EventConfig.eventTypes.NOTHING) {
+                        addExploreLog(`在野外探索了一番，什么也没有发生...`, 'nothing');
                     }
-                } else {
-                    alert(`探索完成！当前位置：(${newX}, ${newY})，消耗粮食${foodConsumption}点`);
                 }
             }
             
@@ -530,12 +654,47 @@
 
         // 返回城市
         function returnToCity() {
+            // 清理日志
+            clearExploreLog();
             // 直接返回上一次出发的城市
-            window.location.href = `game_main.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}`;
+            window.location.href = `game_main.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner || false}`;
+        }
+
+        // 加载地图数据
+        async function loadMapData() {
+            try {
+                // 首先尝试加载map/map_data.json
+                let response = await fetch('map/map_data.json');
+                
+                // 如果失败，尝试加载根目录的map_data.json
+                if (!response.ok) {
+                    response = await fetch('map_data.json');
+                }
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.cities) {
+                        cities = data.cities.map(city => ({
+                            name: city.name,
+                            x: city.x,
+                            y: city.y,
+                            size: city.size,
+                            isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳' // 如果有isBirth字段，使用该值，否则默认咸阳为出生点
+                        }));
+                    }
+                    if (data.eventPoints) {
+                        eventPoints = data.eventPoints;
+                    }
+                }
+            } catch (error) {
+                console.error('加载地图数据失败:', error);
+                // 如果加载失败，使用默认数据
+            }
         }
 
         // 初始化
-        function init() {
+        async function init() {
+            // 加载地图数据
+            await loadMapData();
             // 获取URL参数
             gameData = getUrlParams();
             updateGameInfo();

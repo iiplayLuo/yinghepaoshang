@@ -1,0 +1,5 @@
+# 怪物配置：ID,名称,等级,攻击范围,初始血量,初始攻击力,初始防御力,血量成长,攻击力成长,防御力成长,初始暴击率,初始闪避率,移动速度,普通技能ID
+id,name,level,attackRange,initialHp,initialAttack,initialDefense,hpGrowth,attackGrowth,defenseGrowth,initialCriticalRate,initialDodgeRate,moveSpeed,normalSkillId
+101,秦军士兵,1,1,300,50,20,30,5,2,0.05,0.03,2,2
+102,秦军弓箭手,1,4,200,80,10,20,8,1,0.08,0.05,2.5,3
+103,秦军将领,2,2,800,120,60,80,12,6,0.15,0.08,3.5,4

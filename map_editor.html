@@ -85,6 +85,16 @@
             background-color: #000000;
             color: white;
         }
+        
+        .cell.event-point {
+            background-color: #ffeeee;
+            border: 2px solid #ff6666;
+            font-weight: bold;
+            color: #ff3333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .editor-section h3 {
             color: #8b4513;
             margin-top: 0;
@@ -225,70 +235,149 @@
         </div>
 
         <div class="editor-section">
-            <h3>城市属性编辑</h3>
-            <form id="cityForm">
+            <h3>编辑操作</h3>
+            
+            <!-- 添加类型选择 -->
+            <div id="addTypeSection">
+                <h4>添加新元素</h4>
                 <div class="form-group">
-                    <label for="cityId">城市ID：</label>
-                    <input type="number" id="cityId" min="1" value="1">
-                </div>
-                <div class="form-group">
-                    <label for="cityName">城市名字：</label>
-                    <input type="text" id="cityName" value="咸阳" placeholder="请输入城市名称">
-                </div>
-                <div class="form-group">
-                    <label for="citySize">城市规模：</label>
-                    <select id="citySize">
-                        <option value="large">大</option>
-                        <option value="medium">中</option>
-                        <option value="small">小</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="isBirth" checked>
-                        是主角默认出生点
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>建筑物：</label>
-                    <div class="buildings-list">
-                        <label><input type="checkbox" id="building-palace"> 行宫</label>
-                        <label><input type="checkbox" id="building-blacksmith"> 铁铺</label>
-                        <label><input type="checkbox" id="building-market"> 市集</label>
-                        <label><input type="checkbox" id="building-tavern"> 酒馆</label>
-                        <label><input type="checkbox" id="building-stable"> 马厮</label>
-                        <label><input type="checkbox" id="building-inn"> 民宿</label>
-                        <label><input type="checkbox" id="building-post"> 驿站</label>
+                    <label>选择添加类型：</label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button type="button" class="primary" onclick="showCityForm()">添加城市</button>
+                        <button type="button" class="primary" onclick="showEventForm()">添加事件点</button>
                     </div>
                 </div>
-                <div class="button-group">
-                    <button type="button" class="primary" onclick="saveCity()">保存城市</button>
-                    <button type="button" class="secondary" onclick="clearCity()">清除城市</button>
-                </div>
-            </form>
+            </div>
+            
+            <!-- 城市编辑表单 -->
+            <div id="cityEditSection" style="display: none;">
+                <h4>城市属性编辑</h4>
+                <form id="cityForm">
+                    <div class="form-group">
+                        <label for="cityId">城市ID：</label>
+                        <input type="number" id="cityId" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="cityName">城市名字：</label>
+                        <input type="text" id="cityName" value="新城市" placeholder="请输入城市名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="citySize">城市规模：</label>
+                        <select id="citySize">
+                            <option value="large">大</option>
+                            <option value="medium">中</option>
+                            <option value="small">小</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="isBirth">
+                            是主角默认出生点
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>建筑物：</label>
+                        <div class="buildings-list">
+                            <label><input type="checkbox" id="building-palace"> 行宫</label>
+                            <label><input type="checkbox" id="building-blacksmith"> 铁铺</label>
+                            <label><input type="checkbox" id="building-market"> 市集</label>
+                            <label><input type="checkbox" id="building-tavern"> 酒馆</label>
+                            <label><input type="checkbox" id="building-stable"> 马厮</label>
+                            <label><input type="checkbox" id="building-inn"> 民宿</label>
+                            <label><input type="checkbox" id="building-post"> 驿站</label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="primary" onclick="saveCity()">保存城市</button>
+                        <button type="button" class="secondary" onclick="clearCity()">删除城市</button>
+                        <button type="button" class="secondary" onclick="cancelEdit()">取消</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 事件点编辑表单 -->
+            <div id="eventEditSection" style="display: none;">
+                <h4>事件点编辑</h4>
+                <form id="eventForm">
+                    <div class="form-group">
+                        <label for="eventPointId">事件点ID：</label>
+                        <input type="number" id="eventPointId" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventPointEventId">事件ID：</label>
+                        <input type="number" id="eventPointEventId" min="0" value="0" placeholder="输入事件ID">
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="primary" onclick="saveEventPoint()">保存事件点</button>
+                        <button type="button" class="secondary" onclick="clearEventPoint()">删除事件点</button>
+                        <button type="button" class="secondary" onclick="cancelEdit()">取消</button>
+                    </div>
+                </form>
+            </div>
+            
             <div id="status" style="margin-top: 15px; color: #8b4513;"></div>
         </div>
     </div>
 
     <script>
+        // 事件配置数据
+        let eventsConfig = [];
+        
+        // 加载事件配置
+        async function loadEventsConfig() {
+            try {
+                const response = await fetch('csv/events_config.csv');
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                // 跳过第一行注释和第二行字段名
+                for (let i = 2; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        const parts = line.split(',');
+                        if (parts.length >= 6) {
+                            eventsConfig.push({
+                                id: parseInt(parts[0]),
+                                eventType: parseInt(parts[1]),
+                                param: parts[2],
+                                weight: parseInt(parts[3]),
+                                eventName: parts[4],
+                                eventDescription: parts[5],
+                                eventImage: parts[6] || ''
+                            });
+                        }
+                    }
+                }
+                
+
+                
+
+            } catch (error) {
+                console.error('加载事件配置失败:', error);
+            }
+        }
+        
         // 地图数据
         let mapData = [];
+        let eventPoints = [];
         let selectedCell = null;
-        let nextId = 1;
+        let nextCityId = 1;
+        let nextEventPointId = 1;
 
         // 地图格子与里之间的转换
-        // 咸阳(0,0)在地图中心(50,50)，1格子=50里
+        // 咸阳(0,0)在地图中心(50,50)，1格子=10里
         function liToGrid(liX, liY) {
             return {
-                x: Math.round((liX / 50) + 50),
-                y: Math.round(50 - (liY / 50))
+                x: Math.round((liX / 10) + 50),
+                y: Math.round(50 - (liY / 10))
             };
         }
         
         function gridToLi(gridX, gridY) {
             return {
-                x: (gridX - 50) * 50,
-                y: (50 - gridY) * 50
+                x: (gridX - 50) * 10,
+                y: (50 - gridY) * 10
             };
         }
 
@@ -315,6 +404,14 @@
                         }
                         cell.textContent = city.name.charAt(0);
                         cell.title = `${city.name} (${city.x}, ${city.y})里`;
+                    } else {
+                        // 检查是否有事件点
+                        const eventPoint = eventPoints.find(ep => ep.x === liCoords.x && ep.y === liCoords.y);
+                        if (eventPoint) {
+                            cell.classList.add('event-point');
+                            cell.textContent = '!';
+                            cell.title = `事件点 (${eventPoint.x}, ${eventPoint.y})里`;
+                        }
                     }
 
                     cell.onclick = () => selectCell(cell);
@@ -322,6 +419,97 @@
                 }
             }
         }
+
+        // 显示城市编辑表单
+        function showCityForm() {
+            if (!selectedCell) {
+                alert('请先选择一个位置');
+                return;
+            }
+            
+            const gridX = parseInt(selectedCell.dataset.x);
+            const gridY = parseInt(selectedCell.dataset.y);
+            const liCoords = gridToLi(gridX, gridY);
+            
+            // 检查是否已存在事件点
+            const eventPointExists = eventPoints.some(ep => ep.x === liCoords.x && ep.y === liCoords.y);
+            if (eventPointExists) {
+                alert('该位置已存在事件点，不能添加城市');
+                return;
+            }
+            
+            // 检查是否已存在城市
+            const city = mapData.find(c => c.x === liCoords.x && c.y === liCoords.y);
+            
+            document.getElementById('addTypeSection').style.display = 'none';
+            document.getElementById('cityEditSection').style.display = 'block';
+            document.getElementById('eventEditSection').style.display = 'none';
+            
+            if (city) {
+                // 编辑现有城市
+                document.getElementById('cityId').value = city.id;
+                document.getElementById('cityName').value = city.name;
+                document.getElementById('citySize').value = city.size;
+                document.getElementById('isBirth').checked = city.isBirth;
+                
+                // 设置建筑物
+                setBuildingsByCitySize(city.size, city.buildings);
+            } else {
+                // 新城市
+                document.getElementById('cityId').value = nextCityId;
+                document.getElementById('cityName').value = '新城市';
+                document.getElementById('citySize').value = 'medium';
+                document.getElementById('isBirth').checked = false;
+                
+                // 设置默认建筑物
+                setBuildingsByCitySize('medium');
+            }
+        }
+
+        // 显示事件点编辑表单
+        function showEventForm() {
+            if (!selectedCell) {
+                alert('请先选择一个位置');
+                return;
+            }
+            
+            const gridX = parseInt(selectedCell.dataset.x);
+            const gridY = parseInt(selectedCell.dataset.y);
+            const liCoords = gridToLi(gridX, gridY);
+            
+            // 检查是否已存在城市
+            const cityExists = mapData.some(c => c.x === liCoords.x && c.y === liCoords.y);
+            if (cityExists) {
+                alert('该位置已存在城市，不能添加事件点');
+                return;
+            }
+            
+            // 检查是否已存在事件点
+            const eventPoint = eventPoints.find(ep => ep.x === liCoords.x && ep.y === liCoords.y);
+            
+            document.getElementById('addTypeSection').style.display = 'none';
+            document.getElementById('cityEditSection').style.display = 'none';
+            document.getElementById('eventEditSection').style.display = 'block';
+            
+            if (eventPoint) {
+                // 编辑现有事件点
+                document.getElementById('eventPointId').value = eventPoint.id;
+                document.getElementById('eventPointEventId').value = eventPoint.eventId || 0;
+            } else {
+                // 新事件点
+                document.getElementById('eventPointId').value = nextEventPointId;
+                document.getElementById('eventPointEventId').value = 0;
+            }
+        }
+
+        // 取消编辑
+        function cancelEdit() {
+            document.getElementById('addTypeSection').style.display = 'block';
+            document.getElementById('cityEditSection').style.display = 'none';
+            document.getElementById('eventEditSection').style.display = 'none';
+        }
+
+
 
         // 选择单元格
         function selectCell(cell) {
@@ -332,23 +520,20 @@
 
             // 检查是否有城市
             const city = mapData.find(c => c.x === liCoords.x && c.y === liCoords.y);
+            // 检查是否有事件点
+            const eventPoint = eventPoints.find(ep => ep.x === liCoords.x && ep.y === liCoords.y);
+
             if (city) {
-                document.getElementById('cityId').value = city.id;
-                document.getElementById('cityName').value = city.name;
-                document.getElementById('citySize').value = city.size;
-                document.getElementById('isBirth').checked = city.isBirth;
-                
-                // 设置建筑物
-                setBuildingsByCitySize(city.size, city.buildings);
+                // 显示城市编辑表单
+                showCityForm();
+            } else if (eventPoint) {
+                // 显示事件点编辑表单
+                showEventForm();
             } else {
-                // 新城市
-                document.getElementById('cityId').value = nextId;
-                document.getElementById('cityName').value = '新城市';
-                document.getElementById('citySize').value = 'medium';
-                document.getElementById('isBirth').checked = false;
-                
-                // 设置默认建筑物
-                setBuildingsByCitySize('medium');
+                // 新位置，显示添加类型选择
+                document.getElementById('addTypeSection').style.display = 'block';
+                document.getElementById('cityEditSection').style.display = 'none';
+                document.getElementById('eventEditSection').style.display = 'none';
             }
 
             document.getElementById('status').textContent = `已选择位置: (${liCoords.x}, ${liCoords.y})里`;
@@ -427,8 +612,8 @@
                 mapData.push({ id, name, x: liCoords.x, y: liCoords.y, size, isBirth, buildings });
             }
 
-            // 更新下一个ID
-            nextId = Math.max(...mapData.map(c => c.id), 0) + 1;
+            // 更新下一个城市ID
+            nextCityId = Math.max(...mapData.map(c => c.id), 0) + 1;
 
             // 确保只有一个出生点
             if (isBirth) {
@@ -459,25 +644,86 @@
             document.getElementById('status').textContent = '城市已清除';
         }
 
+        // 保存事件点
+        function saveEventPoint() {
+            if (!selectedCell) {
+                alert('请先选择一个位置');
+                return;
+            }
+
+            const gridX = parseInt(selectedCell.dataset.x);
+            const gridY = parseInt(selectedCell.dataset.y);
+            const liCoords = gridToLi(gridX, gridY);
+            const id = parseInt(document.getElementById('eventPointId').value);
+            const eventId = parseInt(document.getElementById('eventPointEventId').value) || 0;
+
+            // 检查是否已存在城市
+            const cityExists = mapData.some(c => c.x === liCoords.x && c.y === liCoords.y);
+            if (cityExists) {
+                alert('该位置已存在城市，不能添加事件点');
+                return;
+            }
+
+            // 检查是否已存在
+            const existingIndex = eventPoints.findIndex(ep => ep.x === liCoords.x && ep.y === liCoords.y);
+            if (existingIndex >= 0) {
+                eventPoints[existingIndex] = { id, x: liCoords.x, y: liCoords.y, eventId };
+            } else {
+                eventPoints.push({ id, x: liCoords.x, y: liCoords.y, eventId });
+            }
+
+            // 更新下一个事件点ID
+            nextEventPointId = Math.max(...eventPoints.map(ep => ep.id), 0) + 1;
+
+            initMap();
+            document.getElementById('status').textContent = '事件点已保存';
+        }
+
+        // 清除事件点
+        function clearEventPoint() {
+            if (!selectedCell) {
+                alert('请先选择一个位置');
+                return;
+            }
+
+            const gridX = parseInt(selectedCell.dataset.x);
+            const gridY = parseInt(selectedCell.dataset.y);
+            const liCoords = gridToLi(gridX, gridY);
+
+            // 从事件点数据中移除
+            eventPoints = eventPoints.filter(ep => ep.x !== liCoords.x || ep.y !== liCoords.y);
+            initMap();
+            document.getElementById('status').textContent = '事件点已清除';
+        }
+
         // 导出数据
         function exportData() {
             // 转换为游戏需要的格式
-            const exportData = mapData.map(city => ({
-                name: city.name,
-                x: city.x,
-                y: city.y,
-                country: '秦', // 默认国家，可根据需要修改
-                size: city.size === 'large' ? '大型' : city.size === 'medium' ? '中型' : '小型',
-                speciality: '铁器', // 默认特产，可根据需要修改
-                friendliness: 50 // 默认友好度，可根据需要修改
-            }));
+            const exportData = {
+                cities: mapData.map(city => ({
+                    name: city.name,
+                    x: city.x,
+                    y: city.y,
+                    country: '秦', // 默认国家，可根据需要修改
+                    size: city.size === 'large' ? '大型' : city.size === 'medium' ? '中型' : '小型',
+                    speciality: '铁器', // 默认特产，可根据需要修改
+                    friendliness: 50, // 默认友好度，可根据需要修改
+                    isBirth: city.isBirth // 是否为初始点
+                })),
+                eventPoints: eventPoints.map(ep => ({
+                    id: ep.id,
+                    x: ep.x,
+                    y: ep.y,
+                    eventId: ep.eventId || 0
+                }))
+            };
 
             const dataStr = JSON.stringify(exportData, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'cities.json';
+            link.download = 'map_data.json';
             link.click();
             URL.revokeObjectURL(url);
 
@@ -496,15 +742,42 @@
                     reader.onload = function(e) {
                         try {
                             const data = JSON.parse(e.target.result);
-                            mapData = data.map(city => ({
-                                id: city.id || nextId++,
-                                name: city.name,
-                                x: city.x,
-                                y: city.y,
-                                size: city.size === '大型' ? 'large' : city.size === '中型' ? 'medium' : 'small',
-                                isBirth: city.name === '咸阳' // 默认咸阳为出生点
-                            }));
-                            nextId = Math.max(...mapData.map(c => c.id), 0) + 1;
+                            
+                            // 加载城市数据
+                            if (data.cities) {
+                                mapData = data.cities.map(city => ({
+                                    id: city.id || nextCityId++,
+                                    name: city.name,
+                                    x: city.x,
+                                    y: city.y,
+                                    size: city.size === '大型' ? 'large' : city.size === '中型' ? 'medium' : 'small',
+                                    isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳' // 如果有isBirth字段，使用该值，否则默认咸阳为出生点
+                                }));
+                                nextCityId = Math.max(...mapData.map(c => c.id), 0) + 1;
+                            } else if (Array.isArray(data)) {
+                                // 兼容旧格式
+                                mapData = data.map(city => ({
+                                    id: city.id || nextCityId++,
+                                    name: city.name,
+                                    x: city.x,
+                                    y: city.y,
+                                    size: city.size === '大型' ? 'large' : city.size === '中型' ? 'medium' : 'small',
+                                    isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳' // 如果有isBirth字段，使用该值，否则默认咸阳为出生点
+                                }));
+                                nextCityId = Math.max(...mapData.map(c => c.id), 0) + 1;
+                            }
+                            
+                            // 加载事件点数据
+                            if (data.eventPoints) {
+                                eventPoints = data.eventPoints.map(ep => ({
+                                    id: ep.id || nextEventPointId++,
+                                    x: ep.x,
+                                    y: ep.y,
+                                    eventId: ep.eventId || 0
+                                }));
+                                nextEventPointId = Math.max(...eventPoints.map(ep => ep.id), 0) + 1;
+                            }
+                            
                             initMap();
                             document.getElementById('status').textContent = '地图数据已加载';
                         } catch (error) {
@@ -519,9 +792,11 @@
 
         // 清空地图
         function clearAll() {
-            if (confirm('确定要清空所有城市吗？')) {
+            if (confirm('确定要清空所有城市和事件点吗？')) {
                 mapData = [];
-                nextId = 1;
+                eventPoints = [];
+                nextCityId = 1;
+                nextEventPointId = 1;
                 initMap();
                 document.getElementById('status').textContent = '地图已清空';
             }
@@ -529,148 +804,14 @@
 
         // 生成春秋战国城市数据
         function generateCities() {
-            // 春秋战国时期主要城市列表（坐标以咸阳为原点(0,0)，单位：里）
-            // 1个格子 = 50里 = 25公里
+            // 城市列表（坐标以咸阳为原点(0,0)，单位：里）
+            // 1个格子 = 10里 = 5公里
             const cities = [
-                // 秦国城市
-                { name: '咸阳', x: 0, y: 0, size: 'large', isBirth: true },
-                { name: '雍城', x: -100, y: 100, size: 'large' },
-                { name: '栎阳', x: 100, y: 50, size: 'medium' },
-                { name: '陇西', x: -250, y: -100, size: 'small' },
-                { name: '北地', x: -150, y: -250, size: 'small' },
-                
-                // 晋国/三晋城市
-                { name: '晋阳', x: 1000, y: 250, size: 'large' },
-                { name: '平阳', x: 900, y: 400, size: 'medium' },
-                { name: '绛城', x: 750, y: 500, size: 'large' },
-                { name: '邯郸', x: 1250, y: 500, size: 'large' },
-                { name: '大梁', x: 1100, y: 750, size: 'large' },
-                { name: '安邑', x: 800, y: 600, size: 'medium' },
-                { name: '新郑', x: 1000, y: 900, size: 'large' },
-                { name: '上党', x: 900, y: 300, size: 'medium' },
-                
-                // 齐国城市
-                { name: '临淄', x: 1750, y: -250, size: 'large' },
-                { name: '即墨', x: 2000, y: -400, size: 'medium' },
-                { name: '莒城', x: 1900, y: 400, size: 'medium' },
-                { name: '历城', x: 1600, y: 400, size: 'small' },
-                
-                // 楚国城市
-                { name: '郢都', x: 1250, y: 1750, size: 'large' },
-                { name: '寿春', x: 1500, y: 1500, size: 'large' },
-                { name: '宛城', x: 1100, y: 1250, size: 'medium' },
-                { name: '陈城', x: 1250, y: 1100, size: 'medium' },
-                { name: '鄂城', x: 1750, y: 1900, size: 'small' },
-                { name: '长沙', x: 1500, y: 2250, size: 'small' },
-                { name: '江陵', x: 1100, y: 1900, size: 'medium' },
-                
-                // 燕国城市
-                { name: '蓟城', x: 2250, y: 0, size: 'large' },
-                { name: '涿城', x: 2000, y: 250, size: 'medium' },
-                { name: '易城', x: 1900, y: -100, size: 'small' },
-                
-                // 宋国城市
-                { name: '商丘', x: 1400, y: 900, size: 'large' },
-                { name: '彭城', x: 1600, y: 1000, size: 'medium' },
-                
-                // 鲁国城市
-                { name: '曲阜', x: 1750, y: 600, size: 'large' },
-                { name: '邹城', x: 1650, y: 700, size: 'small' },
-                
-                // 卫国城市
-                { name: '朝歌', x: 1250, y: 600, size: 'medium' },
-                { name: '濮阳', x: 1350, y: 700, size: 'medium' },
-                
-                // 郑国城市
-                { name: '荥阳', x: 1100, y: 800, size: 'small' },
-                
-                // 吴国城市
-                { name: '姑苏', x: 2000, y: 1250, size: 'large' },
-                { name: '会稽', x: 2250, y: 1500, size: 'medium' },
-                
-                // 其他重要城市
-                { name: '洛阳', x: 1000, y: 750, size: 'large' },
-                { name: '周王城', x: 950, y: 700, size: 'medium' },
-                { name: '函谷关', x: 250, y: 400, size: 'small' },
-                { name: '武关', x: 400, y: 750, size: 'small' },
-                { name: '潼关', x: 100, y: 250, size: 'small' },
-                { name: '大荔', x: 250, y: 100, size: 'small' },
-                { name: '临晋', x: 400, y: 0, size: 'small' },
-                { name: '蒲坂', x: 500, y: 100, size: 'small' },
-                { name: '解梁', x: 600, y: 250, size: 'small' },
-                { name: '曲沃', x: 700, y: 400, size: 'small' },
-                { name: '翼城', x: 800, y: 450, size: 'small' },
-                { name: '皮氏', x: 600, y: 400, size: 'small' },
-                { name: '平阳', x: 900, y: 400, size: 'medium' },
-                { name: '屯留', x: 800, y: 300, size: 'small' },
-                { name: '长子', x: 850, y: 350, size: 'small' },
-                { name: '铜鞮', x: 750, y: 350, size: 'small' },
-                { name: '襄垣', x: 950, y: 300, size: 'small' },
-                { name: '武安', x: 1300, y: 400, size: 'small' },
-                { name: '邺城', x: 1200, y: 550, size: 'medium' },
-                { name: '信都', x: 1350, y: 600, size: 'small' },
-                { name: '中山', x: 1100, y: 400, size: 'medium' }
+                // 咸阳（中心城市）
+                { name: '咸阳', x: 0, y: 0, size: 'large', isBirth: false },
+                // 初始城市：咸阳西30里，南30里
+                { name: '始源村', x: -30, y: 30, size: 'small', isBirth: true }
             ];
-
-            // 确保城市数量为60个
-            while (cities.length < 60) {
-                // 随机生成一些额外的城市
-                const randomCities = [
-                    '蓝田', '商於', '汉中', '巴郡', '蜀郡', '南郑', '云阳', '高奴',
-                    '上郡', '九原', '云中', '雁门', '代郡', '上谷', '渔阳', '右北平',
-                    '辽西', '辽东', '临淄', '即墨', '莒城', '历城', '薛城', '滕城',
-                    '曲阜', '邹城', '陶丘', '定陶', '濮阳', '朝歌', '帝丘', '顿丘',
-                    '大梁', '荥阳', '陈留', '雍丘', '睢阳', '彭城', '下邳', '淮阴',
-                    '寿春', '钟离', '舒城', '六城', '潜城', '庐江', '九江', '豫章',
-                    '长沙', '武陵', '零陵', '桂阳', '苍梧', '南海', '番禺', '桂林'
-                ];
-                
-                const randomName = randomCities[Math.floor(Math.random() * randomCities.length)];
-                // 坐标范围：-10000到10000里（1万=50格子）
-                const randomX = Math.floor(Math.random() * 20001) - 10000;
-                const randomY = Math.floor(Math.random() * 20001) - 10000;
-                const randomSize = ['small', 'medium', 'large'][Math.floor(Math.random() * 3)];
-                
-                // 根据城市大小设置建筑物
-                let buildings = {};
-                if (randomSize === 'large') {
-                    buildings = {
-                        palace: true,
-                        blacksmith: true,
-                        market: true,
-                        tavern: true,
-                        stable: true,
-                        inn: true,
-                        post: true
-                    };
-                } else if (randomSize === 'medium') {
-                    buildings = {
-                        palace: false,
-                        blacksmith: true,
-                        market: true,
-                        tavern: true,
-                        stable: false,
-                        inn: true,
-                        post: true
-                    };
-                } else if (randomSize === 'small') {
-                    buildings = {
-                        palace: false,
-                        blacksmith: false,
-                        market: true,
-                        tavern: true,
-                        stable: false,
-                        inn: true,
-                        post: true
-                    };
-                }
-                
-                // 检查是否已存在相同位置的城市
-                const exists = cities.some(city => city.x === randomX && city.y === randomY);
-                if (!exists) {
-                    cities.push({ name: randomName, x: randomX, y: randomY, size: randomSize, isBirth: false, buildings });
-                }
-            }
 
             // 为每个城市分配ID并添加建筑物数据
             mapData = cities.map((city, index) => {
@@ -726,9 +867,76 @@
             document.getElementById('status').textContent = '已生成60个春秋战国城市';
         }
 
+        // 异步加载地图数据
+        async function loadMapDataFromFile() {
+            try {
+                // 首先尝试加载map/map_data.json
+                let response = await fetch('map/map_data.json');
+                
+                // 如果失败，尝试加载根目录的map_data.json
+                if (!response.ok) {
+                    response = await fetch('map_data.json');
+                }
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 加载城市数据
+                    if (data.cities && data.cities.length > 0) {
+                        mapData = data.cities.map(city => ({
+                            id: city.id || nextCityId++,
+                            name: city.name,
+                            x: city.x,
+                            y: city.y,
+                            size: city.size === '大型' ? 'large' : city.size === '中型' ? 'medium' : 'small',
+                            isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳',
+                            buildings: city.buildings
+                        }));
+                        nextCityId = Math.max(...mapData.map(c => c.id), 0) + 1;
+                    }
+                    
+                    // 加载事件点数据
+                    if (data.eventPoints && data.eventPoints.length > 0) {
+                        eventPoints = data.eventPoints.map(ep => ({
+                            id: ep.id || nextEventPointId++,
+                            x: ep.x,
+                            y: ep.y,
+                            eventId: ep.eventId || 0
+                        }));
+                        nextEventPointId = Math.max(...eventPoints.map(ep => ep.id), 0) + 1;
+                    }
+                    
+                    return true;
+                } else {
+                    console.log('map/map_data.json文件不存在，使用默认数据');
+                    return false;
+                }
+            } catch (error) {
+                console.log('加载map/map_data.json失败，使用默认数据:', error);
+                return false;
+            }
+        }
+        
         // 初始化
-        initMap();
-        generateCities();
+        async function init() {
+            initMap();
+            loadEventsConfig();
+            
+            // 尝试加载map/map_data.json文件
+            const loaded = await loadMapDataFromFile();
+            
+            // 如果没有加载到数据，使用默认数据
+            if (!loaded || mapData.length === 0) {
+                generateCities();
+            }
+            
+            initMap();
+            if (loaded && mapData.length > 0) {
+                document.getElementById('status').textContent = '已加载地图数据';
+            }
+        }
+        
+        // 启动初始化
+        init();
     </script>
 </body>
 </html>

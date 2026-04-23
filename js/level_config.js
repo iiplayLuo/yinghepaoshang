@@ -6,6 +6,7 @@ const LevelConfig = {
     levels: [
         {
             id: 1,
+            levelName: "初出茅庐",
             enemyIds: [101],
             enemyLevels: [1],
             rewards: [
@@ -14,6 +15,7 @@ const LevelConfig = {
         },
         {
             id: 2,
+            levelName: "小试牛刀",
             enemyIds: [101],
             enemyLevels: [2],
             rewards: [
@@ -22,6 +24,7 @@ const LevelConfig = {
         },
         {
             id: 3,
+            levelName: "远程威胁",
             enemyIds: [102],
             enemyLevels: [1],
             rewards: [
@@ -30,6 +33,7 @@ const LevelConfig = {
         },
         {
             id: 4,
+            levelName: "协同作战",
             enemyIds: [101, 102],
             enemyLevels: [1, 1],
             rewards: [
@@ -39,6 +43,7 @@ const LevelConfig = {
         },
         {
             id: 5,
+            levelName: "生死挑战",
             enemyIds: [101, 102, 103],
             enemyLevels: [10, 10, 10],
             rewards: [
@@ -49,6 +54,7 @@ const LevelConfig = {
         },
         {
             id: 6,
+            levelName: "人海战术",
             enemyIds: [101, 101, 102],
             enemyLevels: [2, 2, 2],
             rewards: [
@@ -58,6 +64,7 @@ const LevelConfig = {
         },
         {
             id: 7,
+            levelName: "箭雨齐发",
             enemyIds: [102, 102, 102],
             enemyLevels: [3, 3, 3],
             rewards: [
@@ -67,6 +74,7 @@ const LevelConfig = {
         },
         {
             id: 8,
+            levelName: "混编部队",
             enemyIds: [101, 102, 103, 101],
             enemyLevels: [5, 5, 5, 5],
             rewards: [
@@ -77,6 +85,7 @@ const LevelConfig = {
         },
         {
             id: 9,
+            levelName: "将领对决",
             enemyIds: [103, 103],
             enemyLevels: [8, 8],
             rewards: [
@@ -87,6 +96,7 @@ const LevelConfig = {
         },
         {
             id: 10,
+            levelName: "终极试炼",
             enemyIds: [101, 102, 103, 101, 102],
             enemyLevels: [15, 15, 15, 15, 15],
             rewards: [

@@ -1,3 +1,4 @@
+# 技能配置：ID,名称,目标类型,目标参数,伤害倍率,冷却时间
 id,name,targetType,targetParam,damagePercent,cd
 1,基础攻击,1,,1.0,1
 2,横扫千军,2,2,0.8,3
