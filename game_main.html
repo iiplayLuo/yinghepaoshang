@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>春秋战国游戏主界面</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "SimSun", serif;
+            background-color: #f5f0e6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            width: 760px;
+            height: 1280px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header {
+            background-color: #8b4513;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .game-info {
+            display: flex;
+            gap: 20px;
+            font-size: 16px;
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background-image: url('https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20landscape%20春秋战国%20style%20background&image_size=landscape_16_9');
+            background-size: cover;
+            background-position: center;
+        }
+        .building-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .building-button {
+            background-color: #8b4513;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .building-button:hover {
+            background-color: #a0522d;
+            transform: scale(1.03);
+        }
+        .building-button:active {
+            transform: scale(0.97);
+        }
+        .footer {
+            background-color: #8b4513;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .header .location-info {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        .location-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ 春秋战国</h1>
+        <div class="game-info">
+            <div class="info-item">
+                <span>等级:</span>
+                <span id="level">1</span>
+            </div>
+            <div class="info-item">
+                <span>金币:</span>
+                <span id="gold">10000</span>
+            </div>
+            <div class="info-item">
+                <span>粮食:</span>
+                <span id="food">10000</span>
+            </div>
+        </div>
+        <div class="location-info">
+            <div class="location-item">
+                <span>当前城市:</span>
+                <span id="currentCity">咸阳</span>
+            </div>
+            <div class="location-item">
+                <span>坐标:</span>
+                <span id="coordinates">(0, 0)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="building-buttons">
+            <button class="building-button" onclick="openBuilding('palace')">行宫</button>
+            <button class="building-button" onclick="openBuilding('blacksmith')">铁铺</button>
+            <button class="building-button" onclick="openBuilding('market')">市集</button>
+            <button class="building-button" onclick="openBuilding('tavern')">酒馆</button>
+            <button class="building-button" onclick="openBuilding('stable')">马厮</button>
+            <button class="building-button" onclick="openBuilding('inn')">民宿</button>
+            <button class="building-button" onclick="openBuilding('post')">驿站</button>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2026 春秋战国游戏</p>
+    </div>
+
+    <script src="game_config.js"></script>
+    <script>
+        // 游戏数据
+        let gameData = { ...GameConfig.player };
+
+        // 更新游戏信息显示
+        function updateGameInfo() {
+            document.getElementById('level').textContent = gameData.level;
+            document.getElementById('gold').textContent = gameData.gold;
+            document.getElementById('food').textContent = gameData.food;
+            document.getElementById('currentCity').textContent = gameData.currentCity;
+            document.getElementById('coordinates').textContent = `(${gameData.x}, ${gameData.y})`;
+        }
+
+        // 探索地图
+        function explore() {
+            // 跳转到探索页面
+            window.location.href = `explore.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}`;
+        }
+        
+        // 打开建筑物
+        function openBuilding(building) {
+            switch(building) {
+                case 'palace':
+                    alert('进入行宫！');
+                    break;
+                case 'blacksmith':
+                    alert('进入铁铺！');
+                    break;
+                case 'market':
+                    alert('进入市集！');
+                    break;
+                case 'tavern':
+                    alert('进入酒馆！');
+                    break;
+                case 'stable':
+                    alert('进入马厮！');
+                    break;
+                case 'inn':
+                    alert('进入民宿！');
+                    break;
+                case 'post':
+                    // 驿站：补满粮食并进入探索
+                    gameData.food = 10000; // 补满粮食
+                    updateGameInfo();
+                    alert('粮食已补满！');
+                    explore(); // 进入探索功能
+                    break;
+            }
+        }
+
+        // 初始化
+        function init() {
+            updateGameInfo();
+        }
+
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+</html>

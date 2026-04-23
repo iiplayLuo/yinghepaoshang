@@ -1,0 +1,5 @@
+id,name,targetType,targetParam,damagePercent,cd
+1,基础攻击,1,,1.0,1
+2,横扫千军,2,2,0.8,3
+3,精准射击,1,,1.2,2
+4,箭雨,2,3,0.6,4

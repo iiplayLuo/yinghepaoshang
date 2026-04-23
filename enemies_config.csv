@@ -1,0 +1,4 @@
+id,name,level,attackRange,initialHp,initialAttack,initialDefense,hpGrowth,attackGrowth,defenseGrowth,initialCriticalRate,initialDodgeRate,normalSkillId
+101,秦军士兵,1,1,300,50,20,30,5,2,0.05,0.03,2
+102,秦军弓箭手,1,4,200,80,10,20,8,1,0.08,0.05,3
+103,秦军将领,2,2,800,120,60,80,12,6,0.15,0.08,4
