@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>春秋战国 - 战斗模拟</title>
+    <script src="js/battle_config.js"></script>
+    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -371,15 +373,78 @@
         </div>
     </div>
     
-    <script src="js/battle_config.js"></script>
-    <script src="js/battle_logic.js"></script>
-    <script src="js/level_config.js"></script>
+    <script src="game_data.js"></script>
     <script>
+        // 战斗逻辑
+        const BattleLogic = {
+            // 计算伤害
+            calculateDamage: function(attacker, defender, skill) {
+                // 1. 首先判断是否闪避
+                if (this.checkDodge(defender)) {
+                    return {
+                        damage: 0,
+                        isDodge: true,
+                        isCritical: false
+                    };
+                }
+                
+                // 2. 计算基础伤害 = (攻击力-防御力)最小值为1 * 技能倍率
+                const baseDamage = Math.max(1, attacker.attack - defender.defense) * skill.damagePercent;
+                
+                // 3. 判断是否暴击
+                const isCritical = this.checkCritical(attacker);
+                const criticalDamage = isCritical ? baseDamage * 1.5 : baseDamage;
+                
+                return {
+                    damage: Math.round(criticalDamage),
+                    isDodge: false,
+                    isCritical: isCritical
+                };
+            },
+            
+            // 检查是否闪避
+            checkDodge: function(defender) {
+                return Math.random() < defender.dodgeRate;
+            },
+            
+            // 检查是否暴击
+            checkCritical: function(attacker) {
+                return Math.random() < attacker.criticalRate;
+            },
+            
+            // 执行战斗
+            executeBattle: function(attacker, defender, skill) {
+                const result = this.calculateDamage(attacker, defender, skill);
+                defender.hp = Math.max(0, defender.hp - result.damage);
+                return result;
+            },
+            
+            // 计算敌人属性（根据等级）
+            calculateEnemyAttributes: function(enemy) {
+                // 血量 = 初始血量 + (等级-1) * 血量成长
+                const hp = enemy.hp + (enemy.level - 1) * enemy.hpGrowth;
+                // 攻击 = 初始攻击 + (等级-1) * 攻击成长
+                const attack = enemy.attack + (enemy.level - 1) * enemy.attackGrowth;
+                // 防御 = 初始防御 + (等级-1) * 防御成长
+                const defense = enemy.defense + (enemy.level - 1) * enemy.defenseGrowth;
+                
+                return {
+                    hp: hp,
+                    attack: attack,
+                    defense: defense,
+                    criticalRate: enemy.criticalRate,
+                    dodgeRate: enemy.dodgeRate
+                };
+            }
+        };
+        
+        // BattleConfig, PlayerConfig, EnemyConfig, SkillConfig, LevelConfig 已从 js/battle_config.js 引入
+
         // 游戏数据
         let gameData = {
             player: {
                 id: 1,
-                name: BattleConfig.player.name,
+                name: PlayerConfig[1].name,
                 level: 1,
                 hp: 1000,
                 maxHp: 1000,
@@ -442,7 +507,7 @@
                 for (let i = 0; i < level.enemyIds.length; i++) {
                     const enemyId = level.enemyIds[i];
                     const enemyLevel = level.enemyLevels[i];
-                    const enemyConfig = BattleConfig.enemies.find(e => e.id === enemyId);
+                    const enemyConfig = EnemyConfig[enemyId];
                     if (enemyConfig) {
                         const enemyAttributes = BattleLogic.calculateEnemyAttributes({
                             ...enemyConfig,
@@ -482,7 +547,7 @@
                 if (gameData.hasPartner) {
                     gameData.partner = {
                         id: 2,
-                        name: BattleConfig.partner.name,
+                        name: PlayerConfig[2].name,
                         level: 1,
                         hp: 800,
                         maxHp: 800,
@@ -547,8 +612,11 @@
                 playerUnit.className = 'unit player-unit';
                 playerUnit.style.left = `${gameData.player.position.x}%`;
                 playerUnit.style.bottom = `${100 - gameData.player.position.y}%`;
-                playerUnit.style.backgroundColor = 'transparent';
-                playerUnit.style.backgroundImage = `url('res/face/${BattleConfig.player.face}')`;
+                playerUnit.style.backgroundColor = '#1976d2';
+                playerUnit.style.backgroundImage = `url('res/face/player1.png')`;
+                playerUnit.style.backgroundSize = 'cover';
+                playerUnit.style.backgroundPosition = 'center';
+                playerUnit.textContent = 'P';
                 playerUnit.title = `${gameData.player.name}\nHP: ${gameData.player.hp}/${gameData.player.maxHp}`;
                 if (gameData.player.hp / gameData.player.maxHp < 0.2) {
                     playerUnit.classList.add('hp-low');
@@ -581,8 +649,11 @@
                 partnerUnit.className = 'unit player-unit';
                 partnerUnit.style.left = `${gameData.partner.position.x}%`;
                 partnerUnit.style.bottom = `${100 - gameData.partner.position.y}%`;
-                partnerUnit.style.backgroundColor = 'transparent';
-                partnerUnit.style.backgroundImage = `url('res/face/${BattleConfig.partner.face}')`;
+                partnerUnit.style.backgroundColor = '#1976d2';
+                partnerUnit.style.backgroundImage = `url('res/face/player2.png')`;
+                partnerUnit.style.backgroundSize = 'cover';
+                partnerUnit.style.backgroundPosition = 'center';
+                partnerUnit.textContent = 'A';
                 partnerUnit.title = `${gameData.partner.name}\nHP: ${gameData.partner.hp}/${gameData.partner.maxHp}`;
                 if (gameData.partner.hp / gameData.partner.maxHp < 0.2) {
                     partnerUnit.classList.add('hp-low');
@@ -610,39 +681,41 @@
             }
             
             // 渲染敌人单位（如果活着）
-            gameData.enemies.forEach((enemy, index) => {
-                if (enemy.hp > 0) {
-                    const enemyUnit = document.createElement('div');
-                    enemyUnit.className = 'unit enemy-unit';
-                    enemyUnit.style.left = `${enemy.position.x}%`;
-                    enemyUnit.style.top = `${enemy.position.y}%`;
-                    enemyUnit.textContent = `E${index + 1}`;
-                    enemyUnit.title = `${enemy.name}\nHP: ${enemy.hp}/${enemy.maxHp}`;
-                    if (enemy.hp / enemy.maxHp < 0.2) {
-                        enemyUnit.classList.add('hp-low');
+            if (gameData.enemies && Array.isArray(gameData.enemies)) {
+                gameData.enemies.forEach((enemy, index) => {
+                    if (enemy.hp > 0) {
+                        const enemyUnit = document.createElement('div');
+                        enemyUnit.className = 'unit enemy-unit';
+                        enemyUnit.style.left = `${enemy.position.x}%`;
+                        enemyUnit.style.top = `${enemy.position.y}%`;
+                        enemyUnit.textContent = `E${index + 1}`;
+                        enemyUnit.title = `${enemy.name}\nHP: ${enemy.hp}/${enemy.maxHp}`;
+                        if (enemy.hp / enemy.maxHp < 0.2) {
+                            enemyUnit.classList.add('hp-low');
+                        }
+                        
+                        // 添加敌人血条
+                        const enemyHpBar = document.createElement('div');
+                        enemyHpBar.className = 'unit-hp-bar';
+                        const enemyHpFill = document.createElement('div');
+                        enemyHpFill.className = 'unit-hp-fill';
+                        enemyHpFill.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+                        if (enemy.hp / enemy.maxHp < 0.2) {
+                            enemyHpFill.classList.add('low');
+                        }
+                        enemyHpBar.appendChild(enemyHpFill);
+                        enemyUnit.appendChild(enemyHpBar);
+                        
+                        // 添加敌人名字
+                        const enemyName = document.createElement('div');
+                        enemyName.className = 'unit-name';
+                        enemyName.textContent = enemy.name;
+                        enemyUnit.appendChild(enemyName);
+                        
+                        battleField.appendChild(enemyUnit);
                     }
-                    
-                    // 添加敌人血条
-                    const enemyHpBar = document.createElement('div');
-                    enemyHpBar.className = 'unit-hp-bar';
-                    const enemyHpFill = document.createElement('div');
-                    enemyHpFill.className = 'unit-hp-fill';
-                    enemyHpFill.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
-                    if (enemy.hp / enemy.maxHp < 0.2) {
-                        enemyHpFill.classList.add('low');
-                    }
-                    enemyHpBar.appendChild(enemyHpFill);
-                    enemyUnit.appendChild(enemyHpBar);
-                    
-                    // 添加敌人名字
-                    const enemyName = document.createElement('div');
-                    enemyName.className = 'unit-name';
-                    enemyName.textContent = enemy.name;
-                    enemyUnit.appendChild(enemyName);
-                    
-                    battleField.appendChild(enemyUnit);
-                }
-            });
+                });
+            }
         }
         
         // 显示伤害文本
@@ -1277,8 +1350,12 @@
                 defeatScreen.remove();
             }
             
+            // 从URL获取原始参数，确保hasPartner正确传递
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasPartner = urlParams.get('hasPartner') === 'true';
+            
             // 返回城市
-            window.location.href = `game_main.html?level=${gameData.level || 1}&gold=${gameData.gold || 10000}&food=${gameData.food || 10000}&currentCity=${encodeURIComponent(gameData.currentCity || '咸阳')}&x=${gameData.x || 0}&y=${gameData.y || 0}&hasPartner=${gameData.hasPartner || false}`;
+            window.location.href = `game_main.html?level=${gameData.level || 1}&gold=${gameData.gold || 10000}&food=${gameData.food || 10000}&currentCity=${encodeURIComponent(gameData.currentCity || '咸阳')}&x=${gameData.x || 0}&y=${gameData.y || 0}&hasPartner=${hasPartner || false}`;
         }
         
         // 关闭胜利结算UI并返回探索界面
@@ -1296,16 +1373,48 @@
             const currentCity = urlParams.get('currentCity') || '咸阳';
             const x = urlParams.get('x') || 0;
             const y = urlParams.get('y') || 0;
+            const hasPartner = urlParams.get('hasPartner') === 'true';
             
             // 跳转到探索界面
-            window.location.href = `explore.html?level=${level}&gold=${gold}&food=${food}&currentCity=${encodeURIComponent(currentCity)}&x=${x}&y=${y}&hasPartner=${gameData.hasPartner}`;
+            window.location.href = `explore.html?level=${level}&gold=${gold}&food=${food}&currentCity=${encodeURIComponent(currentCity)}&x=${x}&y=${y}&hasPartner=${hasPartner}`;
+        }
+        
+        // 初始化用户数据
+        function initUserData() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                // 如果没有登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            // 初始化用户数据
+            gameDataManager.initializeData(currentUser);
+            return true;
         }
         
         // 初始化
         window.onload = function() {
-            // 从URL获取关卡参数，如果没有则默认为1
+            // 初始化用户数据
+            if (!initUserData()) {
+                return; // 会跳转到登录页面
+            }
+            
+            // 从URL获取关卡参数和游戏数据
             const urlParams = new URLSearchParams(window.location.search);
             const levelId = urlParams.get('level') || 1;
+            
+            // 加载游戏数据
+            gameData = {
+                level: parseInt(urlParams.get('level')) || 1,
+                gold: parseInt(urlParams.get('gold')) || 10000,
+                food: parseInt(urlParams.get('food')) || 10000,
+                currentCity: urlParams.get('currentCity') || '咸阳',
+                x: parseInt(urlParams.get('x')) || 0,
+                y: parseInt(urlParams.get('y')) || 0,
+                hasPartner: urlParams.get('hasPartner') === 'true'
+            };
+            
             loadLevel(levelId);
             
             // 延迟1秒后自动开始战斗

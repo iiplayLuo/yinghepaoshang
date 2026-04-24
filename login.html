@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>春秋战国 - 登录</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "SimSun", serif;
+            background-color: #f5f0e6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            width: 760px;
+            height: 1280px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .login-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-container h1 {
+            color: #8b4513;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-group {
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #8b4513;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #8b4513;
+            box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
+        }
+        .login-button {
+            background-color: #8b4513;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .login-button:hover {
+            background-color: #a0522d;
+            transform: translateY(-2px);
+        }
+        .login-button:active {
+            transform: translateY(0);
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🗺️ 春秋战国</h1>
+        <form class="login-form" onsubmit="login(event)">
+            <div class="form-group">
+                <label for="username">账号</label>
+                <input type="text" id="username" name="username" placeholder="请输入账号" required>
+            </div>
+            <button type="submit" class="login-button">登录游戏</button>
+        </form>
+        <div class="footer">
+            <p>© 2026 春秋战国游戏</p>
+        </div>
+    </div>
+
+    <script src="game_data.js"></script>
+    <script>
+        // 登录函数
+        function login(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            
+            if (!username) {
+                alert('请输入账号');
+                return;
+            }
+            
+            // 保存当前用户
+            localStorage.setItem('currentUser', username);
+            
+            // 初始化用户数据
+            gameDataManager.initializeData(username);
+            
+            // 跳转到游戏主界面
+            window.location.href = 'game_main.html';
+        }
+        
+        // 页面加载时检查是否有已登录的用户
+        window.onload = function() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                document.getElementById('username').value = currentUser;
+            }
+        };
+    </script>
+</body>
+</html>

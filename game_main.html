@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>春秋战国游戏主界面</title>
+    <script src="js/map_data.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: "Microsoft YaHei", "SimSun", serif;
@@ -22,13 +25,44 @@
             color: white;
             padding: 15px 20px;
             display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header-top {
+            display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .header h1 {
             margin: 0;
             font-size: 24px;
+        }
+        .companions-list {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .companion-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .companion-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #ffd700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .companion-level {
+            font-size: 10px;
+            color: #ffd700;
         }
         .game-info {
             display: flex;
@@ -100,20 +134,25 @@
 </head>
 <body>
     <div class="header">
-        <h1>🗺️ 春秋战国</h1>
-        <div class="game-info">
-            <div class="info-item">
-                <span>等级:</span>
-                <span id="level">1</span>
+        <div class="header-top">
+            <h1>🗺️ 春秋战国</h1>
+            <div class="game-info">
+                <div class="info-item">
+                    <span>等级:</span>
+                    <span id="level">1</span>
+                </div>
+                <div class="info-item">
+                    <span>金币:</span>
+                    <span id="gold">10000</span>
+                </div>
+                <div class="info-item">
+                    <span>粮食:</span>
+                    <span id="food">10000</span>
+                </div>
             </div>
-            <div class="info-item">
-                <span>金币:</span>
-                <span id="gold">10000</span>
-            </div>
-            <div class="info-item">
-                <span>粮食:</span>
-                <span id="food">10000</span>
-            </div>
+        </div>
+        <div class="companions-list" id="companions-list">
+            <!-- 小伙伴列表将通过JavaScript动态生成 -->
         </div>
         <div class="location-info">
             <div class="location-item">
@@ -143,48 +182,79 @@
         <p>© 2026 春秋战国游戏</p>
     </div>
 
-    <script src="js/game_config.js"></script>
+    <script src="game_data.js"></script>
     <script>
         // 游戏数据
-        let gameData = { ...GameConfig.player };
+        let gameData = null;
+        
+        // 初始化用户数据
+        function initUserData() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                // 如果没有登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // 初始化用户数据
+            const data = gameDataManager.initializeData(currentUser);
+            gameData = data.player;
+        }
         
         // 城市数据
         let cities = [];
         
-        // 加载地图数据
-        async function loadMapData() {
-            try {
-                // 首先尝试加载map/map_data.json
-                let response = await fetch('map/map_data.json');
+        // 伙伴配置
+        const companionConfig = {
+            1: { name: '主角', avatar: 'player1.png' },
+            2: { name: '弓箭手', avatar: 'player2.png' }
+        };
+        
+        // 从JS配置文件加载地图数据
+        function initMapData() {
+            cities = MapData.cities;
+            // 找到初始点并设置游戏数据
+            const birthCity = cities.find(city => city.isBirth);
+            if (birthCity && !gameData.currentCity) {
+                gameData.currentCity = birthCity.name;
+                gameData.x = birthCity.x;
+                gameData.y = birthCity.y;
+                // 保存到本地存储
+                gameDataManager.updatePlayerData(gameData);
+            }
+        }
+
+        // 渲染小伙伴列表
+        function renderCompanions() {
+            const data = gameDataManager.loadData();
+            if (!data) return;
+            const companions = data.companions || [];
+            const companionsList = document.getElementById('companions-list');
+            
+            if (companionsList) {
+                // 构建显示列表，包括主角
+                const displayList = [
+                    {
+                        id: data.player.id,
+                        name: data.player.name,
+                        level: data.player.level
+                    },
+                    ...companions
+                ];
                 
-                // 如果失败，尝试加载根目录的map_data.json
-                if (!response.ok) {
-                    response = await fetch('map_data.json');
-                }
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.cities) {
-                        cities = data.cities.map(city => ({
-                            name: city.name,
-                            x: city.x,
-                            y: city.y,
-                            size: city.size,
-                            isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳'
-                        }));
-                        
-                        // 找到初始点并设置游戏数据
-                        const birthCity = cities.find(city => city.isBirth);
-                        if (birthCity) {
-                            gameData.currentCity = birthCity.name;
-                            gameData.x = birthCity.x;
-                            gameData.y = birthCity.y;
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('加载地图数据失败:', error);
-                // 如果加载失败，使用默认数据
+                companionsList.innerHTML = displayList.map(companion => {
+                    const config = companionConfig[companion.id] || { name: companion.name, avatar: 'player1.png' };
+                    return `
+                        <div class="companion-item">
+                            <div class="companion-avatar" style="background-image: url('res/face/${config.avatar}'); background-size: cover; background-position: center;">
+                                ${(companion.name || '?').charAt(0)}
+                            </div>
+                            <div class="companion-level">
+                                Lv.${companion.level}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
         }
 
@@ -194,7 +264,10 @@
             document.getElementById('gold').textContent = gameData.gold;
             document.getElementById('food').textContent = gameData.food;
             document.getElementById('currentCity').textContent = gameData.currentCity;
-            document.getElementById('coordinates').textContent = `(${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
+            document.getElementById('coordinates').textContent = `E:${Math.round(gameData.x)}, S:${Math.round(gameData.y)}`;
+            
+            // 渲染小伙伴列表
+            renderCompanions();
         }
 
         // 探索地图
@@ -227,6 +300,8 @@
                 case 'post':
                     // 驿站：补满粮食并进入探索
                     gameData.food = 10000; // 补满粮食
+                    // 保存到本地存储
+                    gameDataManager.updatePlayerData(gameData);
                     updateGameInfo();
                     explore(); // 进入探索功能
                     break;
@@ -234,8 +309,16 @@
         }
 
         // 初始化
-        async function init() {
-            await loadMapData();
+        function init() {
+            // 初始化用户数据
+            initUserData();
+            
+            // 等待用户数据初始化完成
+            if (!gameData) {
+                return; // 会跳转到登录页面
+            }
+            
+            initMapData();
             updateGameInfo();
         }
 

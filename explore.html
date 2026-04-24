@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>探索路径</title>
+    <script src="js/events_config.js"></script>
+    <script src="js/map_data.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: "Microsoft YaHei", "SimSun", serif;
@@ -30,6 +34,32 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        .companions-list {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .companion-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .companion-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #ffd700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .companion-level {
+            font-size: 10px;
+            color: #ffd700;
         }
         .location-status {
             text-align: center;
@@ -288,6 +318,9 @@
                 </div>
             </div>
         </div>
+        <div class="companions-list" id="companions-list">
+            <!-- 小伙伴列表将通过JavaScript动态生成 -->
+        </div>
         <div class="location-status">
             <span id="locationStatus">当前位置：咸阳  (0.00, 0.00)</span>
         </div>
@@ -363,23 +396,39 @@
         </div>
     </div>
 
-    <script src="js/game_config.js"></script>
-    <script src="js/event_config.js"></script>
+    <script src="game_data.js"></script>
     <script>
+        // EventConfig 已从 js/events_config.js 引入
+        
         // 城市数据（坐标以咸阳为原点(0,0)，单位：里）
         // 1个格子 = 10里 = 5公里
-        let cities = [
-            // 咸阳（中心城市）
-            { name: '咸阳', x: 0, y: 0, size: 'large', isBirth: false },
-            // 初始城市：咸阳西30里，南30里
-            { name: '始源村', x: -30, y: 30, size: 'small', isBirth: true }
-        ];
+        let cities = [];
         
         // 事件点数据
         let eventPoints = [];
 
         // 游戏数据
-        let gameData = { ...GameConfig.player };
+        let gameData = null;
+        
+        // 伙伴配置
+        const companionConfig = {
+            1: { name: '主角', avatar: 'player1.png' },
+            2: { name: '弓箭手', avatar: 'player2.png' }
+        };
+        
+        // 初始化用户数据
+        function initUserData() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                // 如果没有登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // 初始化用户数据
+            const data = gameDataManager.initializeData(currentUser);
+            gameData = data.player;
+        }
 
         // 从URL获取参数
         function getUrlParams() {
@@ -401,23 +450,60 @@
             return cities.find(city => city.x === x && city.y === y);
         }
 
+        // 渲染小伙伴列表
+        function renderCompanions() {
+            const data = gameDataManager.loadData();
+            if (!data) return;
+            const companions = data.companions || [];
+            const companionsList = document.getElementById('companions-list');
+            
+            if (companionsList) {
+                // 构建显示列表，包括主角
+                const displayList = [
+                    {
+                        id: data.player.id,
+                        name: data.player.name,
+                        level: data.player.level
+                    },
+                    ...companions
+                ];
+                
+                companionsList.innerHTML = displayList.map(companion => {
+                    const config = companionConfig[companion.id] || { name: companion.name, avatar: 'player1.png' };
+                    return `
+                        <div class="companion-item">
+                            <div class="companion-avatar" style="background-image: url('res/face/${config.avatar}'); background-size: cover; background-position: center;">
+                                ${(companion.name || '?').charAt(0)}
+                            </div>
+                            <div class="companion-level">
+                                Lv.${companion.level}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
         // 更新游戏信息显示
         function updateGameInfo() {
             document.getElementById('level').textContent = gameData.level;
             document.getElementById('gold').textContent = gameData.gold;
             document.getElementById('food').textContent = gameData.food;
             document.getElementById('currentCity').textContent = gameData.currentCity;
-            document.getElementById('coordinates').textContent = `(${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
+            document.getElementById('coordinates').textContent = `E:${Math.round(gameData.x)}, S:${Math.round(gameData.y)}`;
             
             // 更新顶部位置状态
             const city = checkInCity(gameData.x, gameData.y);
             let locationText = '';
             if (city) {
-                locationText = `当前位置：${city.name}  (${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
+                locationText = `当前位置：${city.name}  E:${Math.round(gameData.x)}, S:${Math.round(gameData.y)}`;
             } else {
-                locationText = `当前位置：野外  (${Math.round(gameData.x)}, ${Math.round(gameData.y)})`;
+                locationText = `当前位置：野外  E:${Math.round(gameData.x)}, S:${Math.round(gameData.y)}`;
             }
             document.getElementById('locationStatus').textContent = locationText;
+            
+            // 渲染小伙伴列表
+            renderCompanions();
         }
         
         // 添加探索日志
@@ -518,7 +604,7 @@
         }
 
         // 开始探索
-        function startExploration() {
+        async function startExploration() {
             const east = parseInt(document.getElementById('east').value) || 0;
             const south = parseInt(document.getElementById('south').value) || 0;
             const west = parseInt(document.getElementById('west').value) || 0;
@@ -552,6 +638,8 @@
 
             // 扣除粮食
             gameData.food -= foodConsumption;
+            // 保存到本地存储
+            gameDataManager.updatePlayerData(gameData);
 
             if (foundEventPoint && foundEventPoint.eventId > 0) {
                 // 发现事件点，触发事件
@@ -570,6 +658,14 @@
                         addExploreLog(`遇到了一位弓箭手！`, 'partner');
                         showPartnerScreen(event);
                         gameData.hasPartner = true;
+                        // 添加小伙伴到 companions 数组
+                        gameDataManager.addCompanion({
+                            id: 2,
+                            name: '弓箭手',
+                            level: 1
+                        });
+                        // 保存到本地存储
+                        gameDataManager.updatePlayerData(gameData);
                     } else if (event.type === EventConfig.eventTypes.NOTHING) {
                         addExploreLog(`在事件点探索了一番，什么也没有发生...`, 'nothing');
                     }
@@ -578,6 +674,8 @@
                 // 更新坐标
                 gameData.x = newX;
                 gameData.y = newY;
+                // 保存到本地存储
+                gameDataManager.updatePlayerData(gameData);
                 updateGameInfo();
             } else if (foundCity) {
                 // 发现城市，弹出确认对话框
@@ -591,6 +689,14 @@
                                 addExploreLog(`在${foundCity.name}遇到了一位弓箭手！`, 'partner');
                                 showPartnerScreen(event);
                                 gameData.hasPartner = true;
+                                // 添加小伙伴到 companions 数组
+                                gameDataManager.addCompanion({
+                                    id: 2,
+                                    name: '弓箭手',
+                                    level: 1
+                                });
+                                // 保存到本地存储
+                                gameDataManager.updatePlayerData(gameData);
                             } else if (event.type === EventConfig.eventTypes.BATTLE) {
                                 addExploreLog(`在${foundCity.name}遇到了敌人！`, 'battle');
                                 if (confirm('在城市遇到了敌人！是否进入战斗？')) {
@@ -608,6 +714,8 @@
                     gameData.currentCity = foundCity.name;
                     gameData.x = newX;
                     gameData.y = newY;
+                    // 保存到本地存储
+                    gameDataManager.updatePlayerData(gameData);
                     // 清理日志
                     clearExploreLog();
                     // 跳转到主界面
@@ -616,32 +724,48 @@
                     // 不进入城市，只更新坐标
                     gameData.x = newX;
                     gameData.y = newY;
-                    addExploreLog(`探索至(${newX}, ${newY})，消耗粮食${foodConsumption}点`, 'normal');
+                    // 保存到本地存储
+                    gameDataManager.updatePlayerData(gameData);
+                    addExploreLog(`探索至E:${Math.round(newX)}, S:${Math.round(newY)}，消耗粮食${foodConsumption}点`, 'normal');
                     updateGameInfo();
                 }
             } else {
                 // 没有发现城市，只更新坐标
                 gameData.x = newX;
                 gameData.y = newY;
-                addExploreLog(`探索至(${newX}, ${newY})，消耗粮食${foodConsumption}点`, 'normal');
+                // 保存到本地存储
+                gameDataManager.updatePlayerData(gameData);
+                addExploreLog(`探索至E:${Math.round(newX)}, S:${Math.round(newY)}，消耗粮食${foodConsumption}点`, 'normal');
                 updateGameInfo();
                 
                 // 尝试触发事件
-                const event = EventConfig.triggerEvent();
-                if (event) {
-                    if (event.type === EventConfig.eventTypes.BATTLE) {
-                        addExploreLog(`在野外遇到了敌人！`, 'battle');
-                        if (confirm('在野外遇到了敌人！是否进入战斗？')) {
-                            // 跳转到战斗界面，传递事件参数作为关卡ID
-                            window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                try {
+                    const event = EventConfig.triggerEvent();
+                    if (event) {
+                        if (event.type === EventConfig.eventTypes.BATTLE) {
+                            addExploreLog(`在野外遇到了敌人！`, 'battle');
+                            if (confirm('在野外遇到了敌人！是否进入战斗？')) {
+                                // 跳转到战斗界面，传递事件参数作为关卡ID
+                                window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                            }
+                        } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
+                            addExploreLog(`遇到了一位弓箭手！`, 'partner');
+                            showPartnerScreen(event);
+                            gameData.hasPartner = true;
+                            // 添加小伙伴到 companions 数组
+                            gameDataManager.addCompanion({
+                                id: 2,
+                                name: '弓箭手',
+                                level: 1
+                            });
+                            // 保存到本地存储
+                            gameDataManager.updatePlayerData(gameData);
+                        } else if (event.type === EventConfig.eventTypes.NOTHING) {
+                            addExploreLog(`在野外探索了一番，什么也没有发生...`, 'nothing');
                         }
-                    } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
-                        addExploreLog(`遇到了一位弓箭手！`, 'partner');
-                        showPartnerScreen(event);
-                        gameData.hasPartner = true;
-                    } else if (event.type === EventConfig.eventTypes.NOTHING) {
-                        addExploreLog(`在野外探索了一番，什么也没有发生...`, 'nothing');
                     }
+                } catch (error) {
+                    console.error('触发事件失败:', error);
                 }
             }
             
@@ -661,42 +785,33 @@
         }
 
         // 加载地图数据
-        async function loadMapData() {
-            try {
-                // 首先尝试加载map/map_data.json
-                let response = await fetch('map/map_data.json');
-                
-                // 如果失败，尝试加载根目录的map_data.json
-                if (!response.ok) {
-                    response = await fetch('map_data.json');
-                }
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.cities) {
-                        cities = data.cities.map(city => ({
-                            name: city.name,
-                            x: city.x,
-                            y: city.y,
-                            size: city.size,
-                            isBirth: city.isBirth !== undefined ? city.isBirth : city.name === '咸阳' // 如果有isBirth字段，使用该值，否则默认咸阳为出生点
-                        }));
-                    }
-                    if (data.eventPoints) {
-                        eventPoints = data.eventPoints;
-                    }
-                }
-            } catch (error) {
-                console.error('加载地图数据失败:', error);
-                // 如果加载失败，使用默认数据
-            }
+        // 从JS配置文件加载地图数据
+        function initMapData() {
+            cities = MapData.cities;
+            eventPoints = MapData.eventPoints;
         }
 
         // 初始化
-        async function init() {
-            // 加载地图数据
-            await loadMapData();
+        function init() {
+            // 初始化用户数据
+            initUserData();
+            
+            // 等待用户数据初始化完成
+            if (!gameData) {
+                return; // 会跳转到登录页面
+            }
+            
+            // 初始化地图数据
+            initMapData();
             // 获取URL参数
-            gameData = getUrlParams();
+            const urlParams = getUrlParams();
+            // 更新游戏数据
+            gameData = {
+                ...gameData,
+                ...urlParams
+            };
+            // 保存到本地存储
+            gameDataManager.updatePlayerData(gameData);
             updateGameInfo();
         }
 
