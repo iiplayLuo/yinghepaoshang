@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>春秋战国游戏主界面</title>
-    <script src="js/map_data.js"></script>
-    <script src="js/battle_config.js"></script>
-    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: "Microsoft YaHei", "SimSun", serif;
@@ -130,6 +127,159 @@
             align-items: center;
             gap: 5px;
         }
+        .market-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .market-content {
+            background-color: #f5f5dc;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .market-header {
+            background-color: #8b4513;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .market-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .market-tabs {
+            display: flex;
+            background-color: #d2b48c;
+        }
+        .market-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background-color: transparent;
+            font-weight: bold;
+            color: #5a3a1a;
+        }
+        .market-tab.active {
+            background-color: #f5f5dc;
+            color: #8b4513;
+        }
+        .market-body {
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 50vh;
+        }
+        .goods-list {
+            display: grid;
+            gap: 10px;
+        }
+        .goods-item {
+            display: flex;
+            align-items: center;
+            background-color: white;
+            border-radius: 8px;
+            padding: 12px;
+            gap: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .goods-icon {
+            width: 50px;
+            height: 50px;
+            background-color: #d2b48c;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+        .goods-info {
+            flex: 1;
+        }
+        .goods-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .goods-desc {
+            font-size: 12px;
+            color: #666;
+        }
+        .goods-price {
+            color: #b8860b;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .goods-action {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quantity-input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .buy-btn, .sell-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .buy-btn {
+            background-color: #2e7d32;
+            color: white;
+        }
+        .sell-btn {
+            background-color: #c62828;
+            color: white;
+        }
+        .buy-btn:hover, .sell-btn:hover {
+            opacity: 0.9;
+        }
+        .empty-inventory {
+            text-align: center;
+            color: #666;
+            padding: 30px;
+        }
+        .inventory-quantity {
+            font-size: 12px;
+            color: #666;
+        }
+        .city-stock {
+            font-size: 11px;
+            color: #d9534f;
+            margin-top: 2px;
+        }
+        .goods-type {
+            font-size: 12px;
+            color: #5bc0de;
+            font-weight: normal;
+        }
     </style>
 </head>
 <body>
@@ -182,8 +332,187 @@
         <p>© 2026 春秋战国游戏</p>
     </div>
 
-    <script src="game_data.js"></script>
+    <!-- 市集散点界面 -->
+    <div class="market-modal" id="market-modal" style="display: none;">
+        <div class="market-content">
+            <div class="market-header">
+                <h2>🏪 市集</h2>
+                <button class="close-btn" onclick="closeMarket()">&times;</button>
+            </div>
+            <div class="market-tabs">
+                <button class="market-tab active" onclick="switchMarketTab('buy')">购买商品</button>
+                <button class="market-tab" onclick="switchMarketTab('sell')">出售商品</button>
+            </div>
+            <div class="market-body" id="market-body">
+                <!-- 商品列表将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/map_data.js"></script>
+    <script src="js/events_config.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/goods_config.js"></script>
+    <script src="js/items_config.js"></script>
     <script>
+        // 游戏数据管理（直接内嵌，无需服务器）
+        class GameDataManager {
+            constructor() {
+                this.baseSaveKey = 'spring_and_autumn_game_data';
+                this.currentUser = null;
+            }
+            
+            setCurrentUser(username) {
+                this.currentUser = username;
+            }
+            
+            getSaveKey() {
+                return `${this.baseSaveKey}_${this.currentUser || 'default'}`;
+            }
+            
+            initializeData(username = null) {
+                if (username) {
+                    this.setCurrentUser(username);
+                }
+                const data = this.loadData();
+                if (!data) {
+                    const defaultData = {
+                    player: {
+                        id: 1,
+                        name: '主角',
+                        level: 1,
+                        gold: 10000,
+                        food: 10000,
+                        currentCity: '始源村',
+                        x: -30,
+                        y: 30
+                    },
+                    companions: [],
+                    inventory: []
+                };
+                    this.saveData(defaultData);
+                    return defaultData;
+                }
+                return data;
+            }
+            
+            saveData(data) {
+                try {
+                    localStorage.setItem(this.getSaveKey(), JSON.stringify(data));
+                    return true;
+                } catch (error) {
+                    console.error('保存游戏数据失败:', error);
+                    return false;
+                }
+            }
+            
+            loadData() {
+                try {
+                    const data = localStorage.getItem(this.getSaveKey());
+                    return data ? JSON.parse(data) : null;
+                } catch (error) {
+                    console.error('加载游戏数据失败:', error);
+                    return null;
+                }
+            }
+            
+            updatePlayerData(playerData) {
+                const data = this.loadData();
+                if (data) {
+                    data.player = { ...data.player, ...playerData };
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            
+            addCompanion(companionData) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.companions)) {
+                        data.companions = [];
+                    }
+                    const existingIndex = data.companions.findIndex(c => c.id === companionData.id);
+                    if (existingIndex === -1) {
+                        data.companions.push(companionData);
+                        this.saveData(data);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            getInventory() {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.inventory)) {
+                        data.inventory = [];
+                    }
+                    return data.inventory;
+                }
+                return [];
+            }
+            
+            addItem(goodsId, quantity = 1) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.inventory)) {
+                        data.inventory = [];
+                    }
+                    const existingItem = data.inventory.find(item => item.goodsId === goodsId);
+                    if (existingItem) {
+                        existingItem.quantity += quantity;
+                    } else {
+                        data.inventory.push({ goodsId, quantity });
+                    }
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            
+            removeItem(goodsId, quantity = 1) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.inventory)) {
+                        data.inventory = [];
+                        return false;
+                    }
+                    const existingItem = data.inventory.find(item => item.goodsId === goodsId);
+                    if (existingItem && existingItem.quantity >= quantity) {
+                        existingItem.quantity -= quantity;
+                        if (existingItem.quantity <= 0) {
+                            data.inventory = data.inventory.filter(item => item.goodsId !== goodsId);
+                        }
+                        this.saveData(data);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            getItemQuantity(goodsId) {
+                const inventory = this.getInventory();
+                const item = inventory.find(item => item.goodsId === goodsId);
+                return item ? item.quantity : 0;
+            }
+            
+            resetData() {
+                try {
+                    localStorage.removeItem(this.getSaveKey());
+                    // 按账号清理唯一事件记录
+                    const triggeredKey = `triggeredUniqueEvents_${this.currentUser || 'default'}`;
+                    localStorage.removeItem(triggeredKey);
+                    return true;
+                } catch (error) {
+                    console.error('重置游戏数据失败:', error);
+                    return false;
+                }
+            }
+        }
+        
+        const gameDataManager = new GameDataManager();
+
         // 游戏数据
         let gameData = null;
         
@@ -203,14 +532,8 @@
         
         // 城市数据
         let cities = [];
-        
-        // 伙伴配置
-        const companionConfig = {
-            1: { name: '主角', avatar: 'player1.png' },
-            2: { name: '弓箭手', avatar: 'player2.png' }
-        };
-        
-        // 从JS配置文件加载地图数据
+
+        // 初始化地图数据
         function initMapData() {
             cities = MapData.cities;
             // 找到初始点并设置游戏数据
@@ -221,6 +544,16 @@
                 gameData.y = birthCity.y;
                 // 保存到本地存储
                 gameDataManager.updatePlayerData(gameData);
+            }
+            // 确保在城市里时，坐标与城市坐标一致
+            if (gameData.currentCity) {
+                const currentCityData = cities.find(city => city.name === gameData.currentCity);
+                if (currentCityData) {
+                    gameData.x = currentCityData.x;
+                    gameData.y = currentCityData.y;
+                    // 保存到本地存储
+                    gameDataManager.updatePlayerData(gameData);
+                }
             }
         }
 
@@ -286,7 +619,7 @@
                     alert('进入铁铺！');
                     break;
                 case 'market':
-                    alert('进入市集！');
+                    openMarket();
                     break;
                 case 'tavern':
                     alert('进入酒馆！');
@@ -305,6 +638,179 @@
                     updateGameInfo();
                     explore(); // 进入探索功能
                     break;
+            }
+        }
+        
+        // 当前市集标签
+        let currentMarketTab = 'buy';
+        
+        // 商品图标映射
+        const goodsIcons = {
+            1: '⚔️', 2: '🗡️', 3: '🛡️', 4: '🐎', 5: '🛒',
+            6: '🏹', 7: '🛡️', 8: '🌾', 9: '🧂', 10: '🧵',
+            11: '🧶', 12: '🏺', 13: '🍶', 14: '⛏️', 15: '🪙',
+            16: '💎', 17: '🌿', 18: '🍷', 19: '🦬', 20: '🎋'
+        };
+        
+        // 打开市集
+        function openMarket() {
+            document.getElementById('market-modal').style.display = 'flex';
+            switchMarketTab('buy');
+        }
+        
+        // 关闭市集
+        function closeMarket() {
+            document.getElementById('market-modal').style.display = 'none';
+        }
+        
+        // 切换市集结标签
+        function switchMarketTab(tab) {
+            currentMarketTab = tab;
+            document.querySelectorAll('.market-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderMarketGoods();
+        }
+        
+        // 获取当前城市的商品列表
+        function getCurrentCityGoods() {
+            const city = MapData.cities.find(c => c.name === gameData.currentCity);
+            return city ? city.goods || [] : [];
+        }
+        
+        // 获取已购买数量（按城市+商品记录）
+        function getPurchasedQuantity(cityName, goodsId) {
+            const key = `purchase_${cityName}_${goodsId}_${localStorage.getItem('currentUser') || 'default'}`;
+            return parseInt(localStorage.getItem(key) || '0');
+        }
+        
+        // 记录购买数量
+        function recordPurchase(cityName, goodsId, quantity) {
+            const key = `purchase_${cityName}_${goodsId}_${localStorage.getItem('currentUser') || 'default'}`;
+            const current = getPurchasedQuantity(cityName, goodsId);
+            localStorage.setItem(key, current + quantity);
+        }
+        
+        // 渲染商品列表
+        function renderMarketGoods() {
+            const marketBody = document.getElementById('market-body');
+            
+            if (currentMarketTab === 'buy') {
+                const cityGoods = getCurrentCityGoods();
+                if (cityGoods.length === 0) {
+                    marketBody.innerHTML = '<div class="empty-inventory">本城市暂无商品出售</div>';
+                } else {
+                    marketBody.innerHTML = `
+                        <div class="goods-list">
+                            ${cityGoods.map(cityGoods => {
+                                const goods = GoodsConfig.getGoodsById(cityGoods.goodsId);
+                                if (!goods) return '';
+                                const purchased = getPurchasedQuantity(gameData.currentCity, goods.id);
+                                const remainingLimit = cityGoods.limit - purchased;
+                                const maxBuy = Math.min(remainingLimit, cityGoods.stock, 99);
+                                return `
+                                    <div class="goods-item">
+                                        <div class="goods-icon">${goodsIcons[goods.id] || '📦'}</div>
+                                        <div class="goods-info">
+                                            <div class="goods-name">${goods.name} <span class="goods-type">【${GoodsConfig.getTypeName(goods.type)}】</span></div>
+                                            <div class="goods-desc">${goods.description}</div>
+                                            <div class="inventory-quantity">持有: ${gameDataManager.getItemQuantity(goods.id)} 件</div>
+                                            <div class="city-stock">库存: ${cityGoods.stock} | 今日限购: ${remainingLimit}/${cityGoods.limit}</div>
+                                        </div>
+                                        <div class="goods-price">💰 ${goods.buyPrice}</div>
+                                        <div class="goods-action">
+                                            <input type="number" class="quantity-input" id="buy-qty-${goods.id}" value="1" min="1" max="${maxBuy}">
+                                            <button class="buy-btn" onclick="buyGoods(${goods.id})" ${maxBuy <= 0 ? 'disabled' : ''}>${maxBuy <= 0 ? '售罄' : '购买'}</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            } else {
+                const inventory = gameDataManager.getInventory();
+                if (inventory.length === 0) {
+                    marketBody.innerHTML = '<div class="empty-inventory">背包空空如也，暂无商品可出售</div>';
+                } else {
+                    marketBody.innerHTML = `
+                        <div class="goods-list">
+                            ${inventory.map(item => {
+                                const goods = GoodsConfig.getGoodsById(item.goodsId);
+                                if (!goods) return '';
+                                return `
+                                    <div class="goods-item">
+                                        <div class="goods-icon">${goodsIcons[goods.id] || '📦'}</div>
+                                        <div class="goods-info">
+                                            <div class="goods-name">${goods.name} <span class="goods-type">【${GoodsConfig.getTypeName(goods.type)}】</span></div>
+                                            <div class="goods-desc">${goods.description}</div>
+                                            <div class="inventory-quantity">持有: ${item.quantity} 件</div>
+                                        </div>
+                                        <div class="goods-price">💰 ${goods.sellPrice}</div>
+                                        <div class="goods-action">
+                                            <input type="number" class="quantity-input" id="sell-qty-${goods.id}" value="1" min="1" max="${item.quantity}">
+                                            <button class="sell-btn" onclick="sellGoods(${goods.id})">出售</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // 购买商品
+        function buyGoods(goodsId) {
+            const goods = GoodsConfig.getGoodsById(goodsId);
+            const quantity = parseInt(document.getElementById(`buy-qty-${goodsId}`).value) || 1;
+            const totalCost = goods.buyPrice * quantity;
+            
+            const cityGoods = getCurrentCityGoods().find(g => g.goodsId === goodsId);
+            if (!cityGoods) {
+                alert(`❌ 本城市不出售该商品`);
+                return;
+            }
+            
+            const purchased = getPurchasedQuantity(gameData.currentCity, goodsId);
+            if (purchased + quantity > cityGoods.limit) {
+                alert(`❌ 超过购买上限！还能买 ${cityGoods.limit - purchased} 个`);
+                return;
+            }
+            
+            if (quantity > cityGoods.stock) {
+                alert(`❌ 库存不足！只剩 ${cityGoods.stock} 个`);
+                return;
+            }
+            
+            if (gameData.gold >= totalCost) {
+                gameData.gold -= totalCost;
+                gameDataManager.addItem(goodsId, quantity);
+                recordPurchase(gameData.currentCity, goodsId, quantity);
+                gameDataManager.updatePlayerData(gameData);
+                updateGameInfo();
+                renderMarketGoods();
+                alert(`✅ 成功购买 ${quantity} 个 ${goods.name}，花费 ${totalCost} 金币`);
+            } else {
+                alert(`❌ 金币不足！需要 ${totalCost} 金币`);
+            }
+        }
+        
+        // 出售商品
+        function sellGoods(goodsId) {
+            const goods = GoodsConfig.getGoodsById(goodsId);
+            const quantity = parseInt(document.getElementById(`sell-qty-${goodsId}`).value) || 1;
+            const currentQuantity = gameDataManager.getItemQuantity(goodsId);
+            
+            if (currentQuantity >= quantity) {
+                const totalEarn = goods.sellPrice * quantity;
+                gameData.gold += totalEarn;
+                gameDataManager.removeItem(goodsId, quantity);
+                gameDataManager.updatePlayerData(gameData);
+                updateGameInfo();
+                renderMarketGoods();
+                alert(`✅ 成功出售 ${quantity} 个 ${goods.name}，获得 ${totalEarn} 金币`);
+            } else {
+                alert(`❌ 库存不足！只有 ${currentQuantity} 个 ${goods.name}`);
             }
         }
 

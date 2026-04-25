@@ -82,6 +82,20 @@
             font-size: 14px;
             color: #666;
         }
+        .clear-data-button {
+            width: 100%;
+            padding: 12px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .clear-data-button:hover {
+            background-color: #c0392b;
+        }
     </style>
 </head>
 <body>
@@ -94,13 +108,131 @@
             </div>
             <button type="submit" class="login-button">登录游戏</button>
         </form>
+        <button type="button" class="clear-data-button" onclick="clearAllData()">清理所有用户数据</button>
         <div class="footer">
             <p>© 2026 春秋战国游戏</p>
         </div>
     </div>
 
-    <script src="game_data.js"></script>
+    <script src="js/map_data.js"></script>
+    <script src="js/events_config.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/goods_config.js"></script>
+    <script src="js/items_config.js"></script>
     <script>
+        // 游戏数据管理（直接内嵌，无需服务器）
+        class GameDataManager {
+            constructor() {
+                this.baseSaveKey = 'spring_and_autumn_game_data';
+                this.currentUser = null;
+            }
+            
+            setCurrentUser(username) {
+                this.currentUser = username;
+            }
+            
+            getSaveKey() {
+                return `${this.baseSaveKey}_${this.currentUser || 'default'}`;
+            }
+            
+            initializeData(username = null) {
+                if (username) {
+                    this.setCurrentUser(username);
+                }
+                const data = this.loadData();
+                if (!data) {
+                    const defaultData = {
+                        player: {
+                            id: 1,
+                            name: '主角',
+                            level: 1,
+                            gold: 10000,
+                            food: 10000,
+                            currentCity: '始源村',
+                            x: -30,
+                            y: 30
+                        },
+                        companions: []
+                    };
+                    this.saveData(defaultData);
+                    return defaultData;
+                }
+                return data;
+            }
+            
+            saveData(data) {
+                try {
+                    localStorage.setItem(this.getSaveKey(), JSON.stringify(data));
+                    return true;
+                } catch (error) {
+                    console.error('保存游戏数据失败:', error);
+                    return false;
+                }
+            }
+            
+            loadData() {
+                try {
+                    const data = localStorage.getItem(this.getSaveKey());
+                    return data ? JSON.parse(data) : null;
+                } catch (error) {
+                    console.error('加载游戏数据失败:', error);
+                    return null;
+                }
+            }
+            
+            updatePlayerData(playerData) {
+                const data = this.loadData();
+                if (data) {
+                    data.player = { ...data.player, ...playerData };
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            
+            addCompanion(companionData) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.companions)) {
+                        data.companions = [];
+                    }
+                    const existingIndex = data.companions.findIndex(c => c.id === companionData.id);
+                    if (existingIndex === -1) {
+                        data.companions.push(companionData);
+                        this.saveData(data);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            resetData() {
+                try {
+                    localStorage.removeItem(this.getSaveKey());
+                    // 按账号清理唯一事件记录
+                    const triggeredKey = `triggeredUniqueEvents_${this.currentUser || 'default'}`;
+                    localStorage.removeItem(triggeredKey);
+                    return true;
+                } catch (error) {
+                    console.error('重置游戏数据失败:', error);
+                    return false;
+                }
+            }
+        }
+        
+        const gameDataManager = new GameDataManager();
+
+        // 清理所有用户数据
+        function clearAllData() {
+            if (confirm('确定要清理所有用户数据吗？这将删除所有账号的游戏进度！')) {
+                // 清除所有 localStorage
+                localStorage.clear();
+                alert('✅ 所有用户数据已清理完成！');
+                // 刷新页面
+                location.reload();
+            }
+        }
+
         // 登录函数
         function login(event) {
             event.preventDefault();

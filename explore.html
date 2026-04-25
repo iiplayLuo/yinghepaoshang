@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>探索路径</title>
-    <script src="js/events_config.js"></script>
-    <script src="js/map_data.js"></script>
-    <script src="js/battle_config.js"></script>
-    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: "Microsoft YaHei", "SimSun", serif;
@@ -396,10 +392,161 @@
         </div>
     </div>
 
-    <script src="game_data.js"></script>
+    <script src="js/map_data.js"></script>
+    <script src="js/events_config.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/goods_config.js"></script>
+    <script src="js/items_config.js"></script>
     <script>
-        // EventConfig 已从 js/events_config.js 引入
+        // 游戏数据管理（直接内嵌，无需服务器）
+        class GameDataManager {
+            constructor() {
+                this.baseSaveKey = 'spring_and_autumn_game_data';
+                this.currentUser = null;
+            }
+            
+            setCurrentUser(username) {
+                this.currentUser = username;
+            }
+            
+            getSaveKey() {
+                return `${this.baseSaveKey}_${this.currentUser || 'default'}`;
+            }
+            
+            initializeData(username = null) {
+                if (username) {
+                    this.setCurrentUser(username);
+                }
+                const data = this.loadData();
+                if (!data) {
+                    const defaultData = {
+                        player: {
+                            id: 1,
+                            name: '主角',
+                            level: 1,
+                            gold: 10000,
+                            food: 10000,
+                            currentCity: '始源村',
+                            x: -30,
+                            y: 30
+                        },
+                        companions: []
+                    };
+                    this.saveData(defaultData);
+                    return defaultData;
+                }
+                return data;
+            }
+            
+            saveData(data) {
+                try {
+                    localStorage.setItem(this.getSaveKey(), JSON.stringify(data));
+                    return true;
+                } catch (error) {
+                    console.error('保存游戏数据失败:', error);
+                    return false;
+                }
+            }
+            
+            loadData() {
+                try {
+                    const data = localStorage.getItem(this.getSaveKey());
+                    return data ? JSON.parse(data) : null;
+                } catch (error) {
+                    console.error('加载游戏数据失败:', error);
+                    return null;
+                }
+            }
+            
+            updatePlayerData(playerData) {
+                const data = this.loadData();
+                if (data) {
+                    data.player = { ...data.player, ...playerData };
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            
+            addCompanion(companionData) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.companions)) {
+                        data.companions = [];
+                    }
+                    const existingIndex = data.companions.findIndex(c => c.id === companionData.id);
+                    if (existingIndex === -1) {
+                        data.companions.push(companionData);
+                        this.saveData(data);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            resetData() {
+                try {
+                    localStorage.removeItem(this.getSaveKey());
+                    // 按账号清理唯一事件记录
+                    const triggeredKey = `triggeredUniqueEvents_${this.currentUser || 'default'}`;
+                    localStorage.removeItem(triggeredKey);
+                    return true;
+                } catch (error) {
+                    console.error('重置游戏数据失败:', error);
+                    return false;
+                }
+            }
+        }
         
+        const gameDataManager = new GameDataManager();
+
+        // ============================================
+        // 事件业务逻辑（不放在配置文件里）
+        // ============================================
+        const EventLogic = {
+            getTriggeredEventsKey: function() {
+                const currentUser = localStorage.getItem('currentUser') || 'default';
+                return `triggeredUniqueEvents_${currentUser}`;
+            },
+            
+            isEventTriggered: function(eventId) {
+                const triggeredKey = this.getTriggeredEventsKey();
+                const triggeredUniqueEvents = JSON.parse(localStorage.getItem(triggeredKey) || '[]');
+                return triggeredUniqueEvents.includes(eventId);
+            },
+            
+            markEventTriggered: function(eventId) {
+                const triggeredKey = this.getTriggeredEventsKey();
+                const triggeredUniqueEvents = JSON.parse(localStorage.getItem(triggeredKey) || '[]');
+                const event = EventConfig.events.find(e => e.id === eventId);
+                const isUniqueEvent = event?.unique === 1 || event?.unique === true;
+                if (isUniqueEvent && !triggeredUniqueEvents.includes(eventId)) {
+                    triggeredUniqueEvents.push(eventId);
+                    localStorage.setItem(triggeredKey, JSON.stringify(triggeredUniqueEvents));
+                }
+            },
+            
+            triggerEvent: function() {
+                const totalWeight = EventConfig.events.reduce((sum, e) => sum + e.weight, 0);
+                let random = Math.random() * totalWeight;
+                for (let i = 0; i < EventConfig.events.length; i++) {
+                    random -= EventConfig.events[i].weight;
+                    if (random <= 0) {
+                        const event = EventConfig.events[i];
+                        if (event?.unique === 1 || event?.unique === true) {
+                            if (!this.isEventTriggered(event.id)) {
+                                this.markEventTriggered(event.id);
+                                return event;
+                            }
+                        } else {
+                            return event;
+                        }
+                    }
+                }
+                return null;
+            }
+        };
+
         // 城市数据（坐标以咸阳为原点(0,0)，单位：里）
         // 1个格子 = 10里 = 5公里
         let cities = [];
@@ -409,12 +556,6 @@
 
         // 游戏数据
         let gameData = null;
-        
-        // 伙伴配置
-        const companionConfig = {
-            1: { name: '主角', avatar: 'player1.png' },
-            2: { name: '弓箭手', avatar: 'player2.png' }
-        };
         
         // 初始化用户数据
         function initUserData() {
@@ -554,6 +695,19 @@
             if (partnerScreen) {
                 partnerScreen.remove();
             }
+            // 添加伙伴到本地存储
+            const newCompanion = {
+                id: 2, // 荆紫
+                name: '荆紫',
+                level: 1,
+                exp: 0
+            };
+            gameDataManager.addCompanion(newCompanion);
+            // 更新hasPartner状态
+            gameData.hasPartner = true;
+            gameDataManager.updatePlayerData(gameData);
+            // 重新渲染伙伴列表
+            renderCompanions();
         }
         
         // 调整距离
@@ -644,28 +798,21 @@
             if (foundEventPoint && foundEventPoint.eventId > 0) {
                 // 发现事件点，触发事件
                 const event = EventConfig.events.find(e => e.id === foundEventPoint.eventId);
-                if (event) {
+                if (event && !EventLogic.isEventTriggered(event.id)) {
                     addExploreLog(`到达事件点(${newX}, ${newY})，触发事件：${event.eventName}`, 'normal');
+                    // 标记为已触发
+                    EventLogic.markEventTriggered(event.id);
                     
                     if (event.type === EventConfig.eventTypes.BATTLE) {
                         addExploreLog(`遇到了敌人！`, 'battle');
                         if (confirm('遇到了敌人！是否进入战斗？')) {
                             // 跳转到战斗界面，传递事件参数作为关卡ID
-                            window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                            window.location.href = `battle.html?levelId=${event.param}`;
                             return;
                         }
                     } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
                         addExploreLog(`遇到了一位弓箭手！`, 'partner');
                         showPartnerScreen(event);
-                        gameData.hasPartner = true;
-                        // 添加小伙伴到 companions 数组
-                        gameDataManager.addCompanion({
-                            id: 2,
-                            name: '弓箭手',
-                            level: 1
-                        });
-                        // 保存到本地存储
-                        gameDataManager.updatePlayerData(gameData);
                     } else if (event.type === EventConfig.eventTypes.NOTHING) {
                         addExploreLog(`在事件点探索了一番，什么也没有发生...`, 'nothing');
                     }
@@ -684,24 +831,18 @@
                     if (foundCity.eventId && foundCity.eventId > 0) {
                         // 触发城市事件
                         const event = EventConfig.events.find(e => e.id === foundCity.eventId);
-                        if (event) {
+                        if (event && !EventLogic.isEventTriggered(event.id)) {
+                            // 标记为已触发
+                            EventLogic.markEventTriggered(event.id);
+                            
                             if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
                                 addExploreLog(`在${foundCity.name}遇到了一位弓箭手！`, 'partner');
                                 showPartnerScreen(event);
-                                gameData.hasPartner = true;
-                                // 添加小伙伴到 companions 数组
-                                gameDataManager.addCompanion({
-                                    id: 2,
-                                    name: '弓箭手',
-                                    level: 1
-                                });
-                                // 保存到本地存储
-                                gameDataManager.updatePlayerData(gameData);
                             } else if (event.type === EventConfig.eventTypes.BATTLE) {
                                 addExploreLog(`在${foundCity.name}遇到了敌人！`, 'battle');
                                 if (confirm('在城市遇到了敌人！是否进入战斗？')) {
                                     // 跳转到战斗界面，传递事件参数作为关卡ID
-                                    window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                                    window.location.href = `battle.html?levelId=${event.param}`;
                                     return;
                                 }
                             } else if (event.type === EventConfig.eventTypes.NOTHING) {
@@ -740,26 +881,17 @@
                 
                 // 尝试触发事件
                 try {
-                    const event = EventConfig.triggerEvent();
+                    const event = EventLogic.triggerEvent();
                     if (event) {
                         if (event.type === EventConfig.eventTypes.BATTLE) {
                             addExploreLog(`在野外遇到了敌人！`, 'battle');
                             if (confirm('在野外遇到了敌人！是否进入战斗？')) {
                                 // 跳转到战斗界面，传递事件参数作为关卡ID
-                                window.location.href = `battle.html?level=${event.param}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner}`;
+                                window.location.href = `battle.html?levelId=${event.param}`;
                             }
                         } else if (event.type === EventConfig.eventTypes.GET_PARTNER && !gameData.hasPartner) {
                             addExploreLog(`遇到了一位弓箭手！`, 'partner');
                             showPartnerScreen(event);
-                            gameData.hasPartner = true;
-                            // 添加小伙伴到 companions 数组
-                            gameDataManager.addCompanion({
-                                id: 2,
-                                name: '弓箭手',
-                                level: 1
-                            });
-                            // 保存到本地存储
-                            gameDataManager.updatePlayerData(gameData);
                         } else if (event.type === EventConfig.eventTypes.NOTHING) {
                             addExploreLog(`在野外探索了一番，什么也没有发生...`, 'nothing');
                         }
@@ -780,6 +912,15 @@
         function returnToCity() {
             // 清理日志
             clearExploreLog();
+            // 根据当前城市名称找到对应的城市坐标
+            const currentCityData = cities.find(city => city.name === gameData.currentCity);
+            if (currentCityData) {
+                // 更新坐标到城市的坐标
+                gameData.x = currentCityData.x;
+                gameData.y = currentCityData.y;
+                // 保存游戏数据
+                gameDataManager.updatePlayerData(gameData);
+            }
             // 直接返回上一次出发的城市
             window.location.href = `game_main.html?level=${gameData.level}&gold=${gameData.gold}&food=${gameData.food}&currentCity=${encodeURIComponent(gameData.currentCity)}&x=${gameData.x}&y=${gameData.y}&hasPartner=${gameData.hasPartner || false}`;
         }

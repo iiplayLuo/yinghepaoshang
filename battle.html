@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>春秋战国 - 战斗模拟</title>
-    <script src="js/battle_config.js"></script>
-    <script src="js/items_config.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -373,8 +371,114 @@
         </div>
     </div>
     
-    <script src="game_data.js"></script>
+    <script src="js/map_data.js"></script>
+    <script src="js/events_config.js"></script>
+    <script src="js/battle_config.js"></script>
+    <script src="js/goods_config.js"></script>
+    <script src="js/items_config.js"></script>
     <script>
+        // 游戏数据管理（直接内嵌，无需服务器）
+        class GameDataManager {
+            constructor() {
+                this.baseSaveKey = 'spring_and_autumn_game_data';
+                this.currentUser = null;
+            }
+            
+            setCurrentUser(username) {
+                this.currentUser = username;
+            }
+            
+            getSaveKey() {
+                return `${this.baseSaveKey}_${this.currentUser || 'default'}`;
+            }
+            
+            initializeData(username = null) {
+                if (username) {
+                    this.setCurrentUser(username);
+                }
+                const data = this.loadData();
+                if (!data) {
+                    const defaultData = {
+                        player: {
+                            id: 1,
+                            name: '主角',
+                            level: 1,
+                            gold: 10000,
+                            food: 10000,
+                            currentCity: '始源村',
+                            x: -30,
+                            y: 30
+                        },
+                        companions: []
+                    };
+                    this.saveData(defaultData);
+                    return defaultData;
+                }
+                return data;
+            }
+            
+            saveData(data) {
+                try {
+                    localStorage.setItem(this.getSaveKey(), JSON.stringify(data));
+                    return true;
+                } catch (error) {
+                    console.error('保存游戏数据失败:', error);
+                    return false;
+                }
+            }
+            
+            loadData() {
+                try {
+                    const data = localStorage.getItem(this.getSaveKey());
+                    return data ? JSON.parse(data) : null;
+                } catch (error) {
+                    console.error('加载游戏数据失败:', error);
+                    return null;
+                }
+            }
+            
+            updatePlayerData(playerData) {
+                const data = this.loadData();
+                if (data) {
+                    data.player = { ...data.player, ...playerData };
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            
+            addCompanion(companionData) {
+                const data = this.loadData();
+                if (data) {
+                    if (!Array.isArray(data.companions)) {
+                        data.companions = [];
+                    }
+                    const existingIndex = data.companions.findIndex(c => c.id === companionData.id);
+                    if (existingIndex === -1) {
+                        data.companions.push(companionData);
+                        this.saveData(data);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            resetData() {
+                try {
+                    localStorage.removeItem(this.getSaveKey());
+                    // 按账号清理唯一事件记录
+                    const triggeredKey = `triggeredUniqueEvents_${this.currentUser || 'default'}`;
+                    localStorage.removeItem(triggeredKey);
+                    return true;
+                } catch (error) {
+                    console.error('重置游戏数据失败:', error);
+                    return false;
+                }
+            }
+        }
+        
+        const gameDataManager = new GameDataManager();
+
         // 战斗逻辑
         const BattleLogic = {
             // 计算伤害
@@ -438,7 +542,8 @@
             }
         };
         
-        // BattleConfig, PlayerConfig, EnemyConfig, SkillConfig, LevelConfig 已从 js/battle_config.js 引入
+        // 兼容技能配置变量名
+        const skills = SkillConfig;
 
         // 游戏数据
         let gameData = {
@@ -502,31 +607,28 @@
                 // 重置玩家状态
                 resetPlayer();
                 
-                // 加载所有敌人
+                // 加载所有敌人（简化版，确保能正常显示）
                 gameData.enemies = [];
                 for (let i = 0; i < level.enemyIds.length; i++) {
                     const enemyId = level.enemyIds[i];
                     const enemyLevel = level.enemyLevels[i];
                     const enemyConfig = EnemyConfig[enemyId];
                     if (enemyConfig) {
-                        const enemyAttributes = BattleLogic.calculateEnemyAttributes({
-                            ...enemyConfig,
-                            level: enemyLevel
-                        });
-                        
                         // 计算敌人位置（均匀分布在顶部）
                         const positionX = 20 + (i * 20);
                         
+                        // 直接使用基础属性，不进行复杂计算
+                        const levelMultiplier = 1 + (enemyLevel - 1) * 0.1;
                         gameData.enemies.push({
                             id: enemyId,
                             name: enemyConfig.name,
                             level: enemyLevel,
-                            hp: enemyAttributes.hp,
-                            maxHp: enemyAttributes.hp,
-                            attack: enemyAttributes.attack,
-                            defense: enemyAttributes.defense,
-                            criticalRate: enemyAttributes.criticalRate,
-                            dodgeRate: enemyAttributes.dodgeRate,
+                            hp: Math.round(enemyConfig.initialHp * levelMultiplier),
+                            maxHp: Math.round(enemyConfig.initialHp * levelMultiplier),
+                            attack: Math.round(enemyConfig.initialAttack * levelMultiplier),
+                            defense: Math.round(enemyConfig.initialDefense * levelMultiplier),
+                            criticalRate: enemyConfig.initialCriticalRate || 0.05,
+                            dodgeRate: enemyConfig.initialDodgeRate || 0.03,
                             attackRange: enemyConfig.attackRange,
                             position: { x: positionX, y: 10 },
                             state: 'idle',
@@ -539,9 +641,9 @@
                 gameData.currentEnemyIndex = 0;
                 gameData.battleStarted = false;
                 
-                // 检查是否有小伙伴
-                const urlParams = new URLSearchParams(window.location.search);
-                gameData.hasPartner = urlParams.get('hasPartner') === 'true';
+                // 从本地存储检查是否有小伙伴
+                const savedData = gameDataManager.loadData();
+                gameData.hasPartner = savedData && savedData.companions && savedData.companions.length > 0;
                 
                 // 如果有小伙伴，加载小伙伴数据
                 if (gameData.hasPartner) {
@@ -688,7 +790,10 @@
                         enemyUnit.className = 'unit enemy-unit';
                         enemyUnit.style.left = `${enemy.position.x}%`;
                         enemyUnit.style.top = `${enemy.position.y}%`;
-                        enemyUnit.textContent = `E${index + 1}`;
+                        enemyUnit.style.backgroundImage = 'url(res/face/enemy.png)';
+                        enemyUnit.style.backgroundSize = 'cover';
+                        enemyUnit.style.backgroundPosition = 'center';
+                        enemyUnit.textContent = '';
                         enemyUnit.title = `${enemy.name}\nHP: ${enemy.hp}/${enemy.maxHp}`;
                         if (enemy.hp / enemy.maxHp < 0.2) {
                             enemyUnit.classList.add('hp-low');
@@ -1307,6 +1412,20 @@
         function showRewards() {
             const level = LevelConfig.getLevelById(gameData.currentLevel);
             if (level && level.rewards) {
+                // 发放奖励并保存到本地存储
+                level.rewards.forEach(reward => {
+                    const item = LevelConfig.getItemById(reward.itemId);
+                    if (item) {
+                        if (item.type === 1) { // 金币
+                            gameData.gold += reward.quantity;
+                        } else if (item.type === 2) { // 粮食
+                            gameData.food += reward.quantity;
+                        }
+                    }
+                });
+                // 保存到本地存储
+                gameDataManager.updatePlayerData(gameData);
+                
                 // 创建胜利结算UI
                 const victoryScreen = document.createElement('div');
                 victoryScreen.className = 'victory-screen';
@@ -1400,20 +1519,28 @@
                 return; // 会跳转到登录页面
             }
             
-            // 从URL获取关卡参数和游戏数据
+            // 从URL获取关卡参数
             const urlParams = new URLSearchParams(window.location.search);
-            const levelId = urlParams.get('level') || 1;
+            const levelId = urlParams.get('levelId') || 1;
             
-            // 加载游戏数据
-            gameData = {
-                level: parseInt(urlParams.get('level')) || 1,
-                gold: parseInt(urlParams.get('gold')) || 10000,
-                food: parseInt(urlParams.get('food')) || 10000,
-                currentCity: urlParams.get('currentCity') || '咸阳',
-                x: parseInt(urlParams.get('x')) || 0,
-                y: parseInt(urlParams.get('y')) || 0,
-                hasPartner: urlParams.get('hasPartner') === 'true'
-            };
+            // 优先从本地存储加载游戏数据，只更新属性，不覆盖整个gameData对象！
+            const savedData = gameDataManager.loadData();
+            if (savedData && savedData.player) {
+                gameData.level = savedData.player.level || 1;
+                gameData.gold = savedData.player.gold || 10000;
+                gameData.food = savedData.player.food || 10000;
+                gameData.currentCity = savedData.player.currentCity || '咸阳';
+                gameData.x = savedData.player.x || 0;
+                gameData.y = savedData.player.y || 0;
+            } else {
+                // 从URL参数加载（兼容旧方式）
+                gameData.level = parseInt(urlParams.get('level')) || 1;
+                gameData.gold = parseInt(urlParams.get('gold')) || 10000;
+                gameData.food = parseInt(urlParams.get('food')) || 10000;
+                gameData.currentCity = urlParams.get('currentCity') || '咸阳';
+                gameData.x = parseInt(urlParams.get('x')) || 0;
+                gameData.y = parseInt(urlParams.get('y')) || 0;
+            }
             
             loadLevel(levelId);
             

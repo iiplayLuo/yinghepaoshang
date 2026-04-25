@@ -1,6 +1,7 @@
 // ============================================
-// 事件配置文件 - 从CSV转换
+// 事件配置文件 - 纯数据配置
 // ============================================
+
 const EventConfig = {
     eventTypes: {
         BATTLE: 1,
@@ -21,37 +22,5 @@ const EventConfig = {
         {id: 10, type: 1, param: 10, weight: 25, unique: false, eventName: "遭遇秦军", eventDescription: "在野外遇到了秦军将领", eventImage: "enemy10.png"},
         {id: 11, type: 2, param: 1, weight: 500, unique: true, eventName: "获得伙伴", eventDescription: "在野外遇到了一位弓箭手，他愿意加入你的队伍", eventImage: "partner.png"},
         {id: 12, type: 3, param: 0, weight: 50, unique: false, eventName: "无事发生", eventDescription: "在野外探索了一番，什么也没有发生", eventImage: "nothing.png"}
-    ],
-
-    selectEventByWeight: function() {
-        const triggeredUniqueEvents = JSON.parse(localStorage.getItem('triggeredUniqueEvents') || '[]');
-        const availableEvents = this.events.filter(event => !event.unique || !triggeredUniqueEvents.includes(event.id));
-        const totalWeight = availableEvents.reduce((sum, event) => sum + event.weight, 0);
-        
-        if (totalWeight === 0) return null;
-        
-        let random = Math.random() * totalWeight;
-        for (const event of availableEvents) {
-            random -= event.weight;
-            if (random <= 0) {
-                if (event.unique) {
-                    triggeredUniqueEvents.push(event.id);
-                    localStorage.setItem('triggeredUniqueEvents', JSON.stringify(triggeredUniqueEvents));
-                }
-                return event;
-            }
-        }
-        return availableEvents[0];
-    },
-
-    triggerEvent: function() {
-        if (Math.random() < 0.5) {
-            return this.selectEventByWeight();
-        }
-        return null;
-    },
-
-    resetTriggeredEvents: function() {
-        localStorage.removeItem('triggeredUniqueEvents');
-    }
+    ]
 };
